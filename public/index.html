@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>stack.pub — A visual portfolio for your newsletter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=Lora:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: #fafaf8; }
+    body { font-family: 'DM Sans', sans-serif; color: #1a1a1a; min-height: 100vh; -webkit-font-smoothing: antialiased;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+
+    .logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 32px; }
+    .logo-mark { width: 36px; height: 36px; background: #1a1a1a; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+    .logo-mark svg { width: 20px; height: 20px; }
+    .logo-name { font-weight: 700; font-size: 24px; letter-spacing: -0.02em; }
+
+    h1 { font-family: 'Lora', serif; font-size: clamp(28px, 5vw, 42px); font-weight: 600; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 16px; }
+    h1 em { font-style: italic; font-weight: 400; color: #888; }
+    p { font-size: 17px; color: #777; line-height: 1.6; max-width: 420px; margin-bottom: 32px; }
+
+    .btn {
+      display: inline-block; padding: 14px 36px;
+      background: #1a1a1a; color: #fff;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 16px;
+      text-decoration: none; border-radius: 10px; transition: all 0.2s;
+    }
+    .btn:hover { background: #333; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+    .login-link { display: block; margin-top: 16px; font-size: 14px; color: #aaa; text-decoration: none; }
+    .login-link:hover { color: #666; }
+
+    .footer { position: fixed; bottom: 24px; font-size: 12px; color: #ddd; }
+  </style>
+</head>
+<body>
+
+  <div class="logo-row">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="#fff"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.3"/></svg>
+    </div>
+    <span class="logo-name">stack.pub</span>
+  </div>
+
+  <h1>Your newsletter,<br/><em>as a visual portfolio</em></h1>
+  <p>Turn your publication into a shareable photo grid. Pick a style, get a link. It updates every time you publish.</p>
+
+  <a class="btn" href="/login">Get started</a>
+  <a class="login-link" href="/login">Already have an account? Sign in</a>
+
+  <div class="footer">stack.pub</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const sb = supabase.createClient(
+      'https://asuhkamvyfvtxeqyqdei.supabase.co',
+      'sb_publishable_iRpJb4YxWsFTFgVt_drNaA_7AIuZ1cQ'
+    );
+    // If already logged in, go straight to dashboard
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.href = '/dashboard';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — stack.pub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Lora:wght@500;600&family=Sora:wght@500;600&family=Newsreader:ital,wght@1,400&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: #fafaf8; }
+    body { font-family: 'DM Sans', sans-serif; color: #1a1a1a; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px; max-width: 720px; margin: 0 auto;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 8px; }
+    .logo-mark { width: 28px; height: 28px; background: #1a1a1a; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+    .logo-mark svg { width: 16px; height: 16px; }
+    .topbar-name { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .user-email { font-size: 13px; color: #888; }
+    .sign-out {
+      font-size: 13px; color: #bbb; cursor: pointer; text-decoration: none;
+      transition: color 0.2s;
+    }
+    .sign-out:hover { color: #666; }
+
+    .container { max-width: 560px; margin: 20px auto; padding: 0 24px; }
+
+    /* Loading state */
+    .loading { text-align: center; padding: 80px 24px; color: #bbb; font-size: 15px; }
+
+    /* ── Claim Flow ── */
+    .claim-card {
+      background: #fff; border: 1px solid #eee; border-radius: 16px;
+      padding: 36px 32px; box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .claim-card h1 { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; margin-bottom: 6px; }
+    .claim-card .subtitle { font-size: 15px; color: #888; margin-bottom: 28px; line-height: 1.5; }
+
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+    .field input, .field select {
+      width: 100%; padding: 12px 14px;
+      border: 1px solid #e0e0e0; border-radius: 10px;
+      font-size: 15px; font-family: 'DM Sans', sans-serif; color: #1a1a1a;
+      outline: none; transition: border-color 0.2s; background: #fafafa;
+    }
+    .field input:focus, .field select:focus { border-color: #1a1a1a; background: #fff; }
+    .field input::placeholder { color: #bbb; }
+    .field .hint { font-size: 12px; color: #aaa; margin-top: 5px; }
+
+    .slug-preview {
+      font-size: 14px; color: #888; margin-top: 6px;
+      padding: 8px 12px; background: #f5f5f5; border-radius: 8px;
+    }
+    .slug-preview strong { color: #1a1a1a; }
+    .slug-available { color: #43a047; }
+    .slug-taken { color: #e05252; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* Style picker */
+    .style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .style-option {
+      border: 2px solid #eee; border-radius: 10px; overflow: hidden;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .style-option:hover { border-color: #ccc; }
+    .style-option.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.08); }
+    .style-option .preview {
+      aspect-ratio: 3/4; position: relative; overflow: hidden; container-type: inline-size;
+      background: linear-gradient(145deg, #4a90a4 0%, #2d7a8e 40%, #1a5c6e 100%);
+    }
+    .style-option .sname { text-align: center; padding: 8px; font-size: 12px; font-weight: 600; background: #fff; }
+
+    /* Broadsheet preview */
+    .sp-broadsheet .ov { position:absolute; inset:0; background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-start; padding:7cqi; }
+    .sp-broadsheet .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
+    /* Byline preview */
+    .sp-byline .ov { position:absolute; inset:0; background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-end; justify-content:center; padding:7cqi; text-align:center; }
+    .sp-byline .ov span { font-family:'Newsreader',serif; font-weight:400; font-size:10cqi; font-style:italic; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
+    /* Billboard preview */
+    .sp-billboard .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:6cqi; }
+    .sp-billboard .ov span { font-family:'Bebas Neue',sans-serif; font-size:14cqi; color:rgba(255,255,255,0.7); text-transform:uppercase; line-height:0.92; letter-spacing:0.03em; }
+
+    /* Ownership checkbox */
+    .checkbox-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 24px; cursor: pointer; user-select: none;
+    }
+    .checkbox-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #1a1a1a; cursor: pointer; }
+    .checkbox-row span { font-size: 13px; color: #666; line-height: 1.5; }
+
+    .btn {
+      width: 100%; padding: 14px;
+      background: #1a1a1a; color: #fff;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px;
+      border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+    }
+    .btn:hover { background: #333; }
+    .btn:disabled { opacity: 0.35; cursor: default; }
+
+    .error { font-size: 13px; color: #e05252; margin-top: 12px; display: none; text-align: center; }
+
+    /* ── Edit Flow ── */
+    .edit-card {
+      background: #fff; border: 1px solid #eee; border-radius: 16px;
+      padding: 36px 32px; box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .edit-card h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+    .edit-card .page-url {
+      font-size: 14px; color: #888; margin-bottom: 24px;
+    }
+    .edit-card .page-url a { color: #1a1a1a; font-weight: 600; text-decoration: none; }
+    .edit-card .page-url a:hover { text-decoration: underline; }
+
+    .logo-upload-area {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+    }
+    .logo-thumb {
+      width: 60px; height: 60px; border-radius: 10px; background: #f0f0f0;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+      font-size: 11px; color: #bbb; flex-shrink: 0;
+    }
+    .logo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .logo-upload-btns { display: flex; flex-direction: column; gap: 6px; }
+    .upload-btn {
+      padding: 8px 16px; background: #f5f5f5; border: 1px solid #e0e0e0;
+      border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+      cursor: pointer; transition: background 0.2s; color: #555;
+    }
+    .upload-btn:hover { background: #eee; }
+    .logo-note { font-size: 11px; color: #bbb; }
+
+    .save-row { display: flex; gap: 10px; margin-top: 8px; }
+    .btn-outline {
+      flex: 1; padding: 12px; background: transparent; color: #1a1a1a;
+      border: 1px solid #ddd; border-radius: 10px; font-family: 'DM Sans', sans-serif;
+      font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; text-align: center;
+      text-decoration: none;
+    }
+    .btn-outline:hover { border-color: #999; }
+    .btn-save { flex: 1; padding: 12px; font-size: 14px; }
+
+    .saved-msg { font-size: 13px; color: #43a047; text-align: center; margin-top: 12px; display: none; }
+
+    .hidden { display: none !important; }
+
+    .filter-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+    }
+    .filter-row input { width: 18px; height: 18px; accent-color: #1a1a1a; cursor: pointer; }
+    .filter-row span { font-size: 14px; color: #555; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="#fff"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.3"/></svg>
+      </div>
+      <span class="topbar-name">stack.pub</span>
+    </div>
+    <div class="topbar-right">
+      <span class="user-email" id="userEmail"></span>
+      <a class="sign-out" onclick="signOut()">Sign out</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="loading" id="loading">Loading...</div>
+
+    <!-- ── CLAIM FLOW ── -->
+    <div class="claim-card hidden" id="claimCard">
+      <h1>Claim your page</h1>
+      <p class="subtitle">Connect your publication and choose your URL.</p>
+
+      <div class="field">
+        <label>Publication URL</label>
+        <input type="text" id="pubUrl" placeholder="https://yourname.substack.com" oninput="onPubUrlChange()" />
+        <div class="hint">Your publication URL or custom domain</div>
+      </div>
+
+      <div class="field">
+        <label>Publication name</label>
+        <input type="text" id="displayName" placeholder="Your publication or author name" />
+      </div>
+
+      <div class="field">
+        <label>Choose your URL</label>
+        <input type="text" id="slugInput" placeholder="yourname" oninput="checkSlug()" />
+        <div class="slug-preview" id="slugPreview">stack.pub/<strong>yourname</strong></div>
+      </div>
+
+      <div class="field">
+        <label>Card style</label>
+        <div class="style-grid">
+          <div class="style-option active" data-style="broadsheet" onclick="pickStyle('broadsheet')">
+            <div class="preview sp-broadsheet"><div class="ov"><span>Your title</span></div></div>
+            <div class="sname">Broadsheet</div>
+          </div>
+          <div class="style-option" data-style="byline" onclick="pickStyle('byline')">
+            <div class="preview sp-byline"><div class="ov"><span>Your title</span></div></div>
+            <div class="sname">Byline</div>
+          </div>
+          <div class="style-option" data-style="billboard" onclick="pickStyle('billboard')">
+            <div class="preview sp-billboard"><div class="ov"><span>Your title</span></div></div>
+            <div class="sname">Billboard</div>
+          </div>
+        </div>
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="ownershipConfirm" />
+        <span>I confirm that I own or am authorized to manage this publication. I understand that stack.pub reserves the right to remove any page if ownership is disputed.</span>
+      </label>
+
+      <button class="btn" id="claimBtn" onclick="claimPage()" disabled>Claim my page</button>
+      <div class="error" id="claimError"></div>
+    </div>
+
+    <!-- ── EDIT FLOW ── -->
+    <div class="edit-card hidden" id="editCard">
+      <h1>Your page</h1>
+      <p class="page-url">
+        <a id="pageLink" href="#" target="_blank"></a>
+      </p>
+
+      <div class="field">
+        <label>Publication name</label>
+        <input type="text" id="editDisplayName" />
+      </div>
+
+      <div class="logo-upload-area">
+        <div class="logo-thumb" id="logoThumb">No logo</div>
+        <div class="logo-upload-btns">
+          <label class="upload-btn">
+            Upload logo
+            <input type="file" accept="image/*" style="display:none" onchange="uploadLogo(event)" />
+          </label>
+          <p class="logo-note">PNG, JPG, or SVG. Under 1MB.</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Card style</label>
+        <div class="style-grid" id="editStyleGrid">
+          <div class="style-option" data-style="broadsheet" onclick="pickEditStyle('broadsheet')">
+            <div class="preview sp-broadsheet"><div class="ov"><span>Your title</span></div></div>
+            <div class="sname">Broadsheet</div>
+          </div>
+          <div class="style-option" data-style="byline" onclick="pickEditStyle('byline')">
+            <div class="preview sp-byline"><div class="ov"><span>Your title</span></div></div>
+            <div class="sname">Byline</div>
+          </div>
+          <div class="style-option" data-style="billboard" onclick="pickEditStyle('billboard')">
+            <div class="preview sp-billboard"><div class="ov"><span>Your title</span></div></div>
+            <div class="sname">Billboard</div>
+          </div>
+        </div>
+      </div>
+
+      <label class="filter-row">
+        <input type="checkbox" id="editExclude" />
+        <span>Hide videos, podcasts, and imageless posts</span>
+      </label>
+
+      <div class="save-row">
+        <a class="btn-outline" id="viewPageBtn" href="#" target="_blank">View page</a>
+        <button class="btn btn-save" onclick="savePage()">Save changes</button>
+      </div>
+      <div class="saved-msg" id="savedMsg">Changes saved!</div>
+      <div class="error" id="editError"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://asuhkamvyfvtxeqyqdei.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_iRpJb4YxWsFTFgVt_drNaA_7AIuZ1cQ';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null;
+    let currentPage = null;
+    let selectedStyle = 'broadsheet';
+    let editStyle = 'broadsheet';
+    let slugTimeout = null;
+
+    // ── Init ──
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) {
+        window.location.href = '/login';
+        return;
+      }
+      currentUser = session.user;
+      document.getElementById('userEmail').textContent = currentUser.email;
+
+      // Check if user has a page
+      const token = session.access_token;
+      const res = await fetch('/api/my-page', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      document.getElementById('loading').classList.add('hidden');
+
+      if (data.page) {
+        currentPage = data.page;
+        showEditFlow();
+      } else {
+        showClaimFlow();
+      }
+    }
+
+    // ── Auth ──
+    async function signOut() {
+      await sb.auth.signOut();
+      window.location.href = '/';
+    }
+
+    async function getToken() {
+      const { data: { session } } = await sb.auth.getSession();
+      return session?.access_token;
+    }
+
+    // ── Claim Flow ──
+    function showClaimFlow() {
+      document.getElementById('claimCard').classList.remove('hidden');
+    }
+
+    function onPubUrlChange() {
+      const url = document.getElementById('pubUrl').value.trim();
+      // Auto-suggest slug from URL
+      if (url && !document.getElementById('slugInput').value) {
+        let slug = url.toLowerCase()
+          .replace(/^https?:\/\//, '')
+          .replace(/\.substack\.com.*/, '')
+          .replace(/\..+$/, '')
+          .replace(/[^a-z0-9]/g, '');
+        document.getElementById('slugInput').value = slug;
+        checkSlug();
+      }
+    }
+
+    async function checkSlug() {
+      const slug = document.getElementById('slugInput').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      const preview = document.getElementById('slugPreview');
+      if (!slug) {
+        preview.innerHTML = 'stack.pub/<strong>yourname</strong>';
+        preview.className = 'slug-preview';
+        updateClaimBtn();
+        return;
+      }
+
+      preview.innerHTML = `stack.pub/<strong>${slug}</strong> — checking...`;
+
+      clearTimeout(slugTimeout);
+      slugTimeout = setTimeout(async () => {
+        const res = await fetch(`/api/check-slug/${slug}`);
+        const data = await res.json();
+        if (data.available) {
+          preview.innerHTML = `stack.pub/<strong>${slug}</strong> — <span class="slug-available">available!</span>`;
+        } else {
+          preview.innerHTML = `stack.pub/<strong>${slug}</strong> — <span class="slug-taken">taken</span>`;
+        }
+        updateClaimBtn();
+      }, 400);
+    }
+
+    function pickStyle(style) {
+      selectedStyle = style;
+      document.querySelectorAll('#claimCard .style-option').forEach(el => {
+        el.classList.toggle('active', el.dataset.style === style);
+      });
+    }
+
+    function updateClaimBtn() {
+      const pubUrl = document.getElementById('pubUrl').value.trim();
+      const name = document.getElementById('displayName').value.trim();
+      const slug = document.getElementById('slugInput').value.trim();
+      const confirmed = document.getElementById('ownershipConfirm').checked;
+      document.getElementById('claimBtn').disabled = !(pubUrl && name && slug && confirmed);
+    }
+
+    // Attach listeners for enabling the button
+    ['pubUrl', 'displayName', 'slugInput'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateClaimBtn);
+    });
+    document.getElementById('ownershipConfirm').addEventListener('change', updateClaimBtn);
+
+    async function claimPage() {
+      const btn = document.getElementById('claimBtn');
+      const err = document.getElementById('claimError');
+      err.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Creating your page...';
+
+      const token = await getToken();
+      try {
+        const res = await fetch('/api/claim', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            publicationUrl: document.getElementById('pubUrl').value.trim(),
+            slug: document.getElementById('slugInput').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''),
+            displayName: document.getElementById('displayName').value.trim(),
+            imageStyle: selectedStyle
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error);
+
+        // Reload to show edit flow
+        window.location.reload();
+      } catch (e) {
+        err.textContent = e.message;
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Claim my page';
+      }
+    }
+
+    // ── Edit Flow ──
+    function showEditFlow() {
+      document.getElementById('editCard').classList.remove('hidden');
+      const p = currentPage;
+
+      document.getElementById('editDisplayName').value = p.display_name;
+      document.getElementById('editExclude').checked = p.exclude_no_image;
+      document.getElementById('pageLink').textContent = `stack.pub/${p.slug}`;
+      document.getElementById('pageLink').href = `/${p.slug}`;
+      document.getElementById('viewPageBtn').href = `/${p.slug}`;
+
+      editStyle = p.image_style;
+      document.querySelectorAll('#editStyleGrid .style-option').forEach(el => {
+        el.classList.toggle('active', el.dataset.style === p.image_style);
+      });
+
+      if (p.logo_url) {
+        document.getElementById('logoThumb').innerHTML = `<img src="${p.logo_url}" alt="Logo" />`;
+      }
+    }
+
+    function pickEditStyle(style) {
+      editStyle = style;
+      document.querySelectorAll('#editStyleGrid .style-option').forEach(el => {
+        el.classList.toggle('active', el.dataset.style === style);
+      });
+    }
+
+    async function savePage() {
+      const token = await getToken();
+      const err = document.getElementById('editError');
+      const msg = document.getElementById('savedMsg');
+      err.style.display = 'none';
+      msg.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/page', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            displayName: document.getElementById('editDisplayName').value.trim(),
+            imageStyle: editStyle,
+            excludeNoImage: document.getElementById('editExclude').checked
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error);
+
+        msg.style.display = 'block';
+        setTimeout(() => msg.style.display = 'none', 3000);
+      } catch (e) {
+        err.textContent = e.message;
+        err.style.display = 'block';
+      }
+    }
+
+    async function uploadLogo(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 1024 * 1024) return alert('Image must be under 1MB');
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const token = await getToken();
+        try {
+          const res = await fetch('/api/upload-logo', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              imageData: e.target.result,
+              fileName: file.name
+            })
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error);
+
+          document.getElementById('logoThumb').innerHTML = `<img src="${data.logoUrl}" alt="Logo" />`;
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    init();
+  </script>
+</body>
+</html>
