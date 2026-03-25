@@ -475,39 +475,47 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html'
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public/login.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard.html')));
 
-// ─── Public portfolio page ───────────────────────────────────────────────────
-app.get('/:slug', async (req, res) => {
+// ─── Posts API (for client-side loading) ─────────────────────────────────────
+app.get('/api/posts/:slug', async (req, res) => {
   const slug = req.params.slug.toLowerCase();
-  if (['api', 'login', 'dashboard', 'favicon.ico'].includes(slug)) return res.status(404).end();
+  const { data: page } = await supabase.from('pages')
+    .select('*').eq('slug', slug).single();
+  if (!page) return res.status(404).json({ error: 'Page not found' });
 
-  // Look up page in database
-  const { data: page, error } = await supabase.from('pages')
-    .select('*')
-    .eq('slug', slug)
-    .single();
-
-  if (!page) return res.status(404).send(notFoundHTML(slug));
-
-  // Fetch live posts from publication
   const publication = parseSubstackUrl(page.publication_url);
   try {
     const feed = await fetchSubstackFeed(publication);
     let posts = feed.posts;
     if (page.exclude_no_image) posts = posts.filter(p => p.img && p.isArticle !== false);
-
-    const substackUrl = feed.substackUrl || page.publication_url;
-    res.send(renderPage({
-      slug: page.slug,
-      displayName: page.display_name,
-      logoUrl: page.logo_url || feed.logo || '',
-      imageStyle: page.image_style,
-      substackUrl,
+    res.json({
       posts,
-      updatedAt: new Date().toISOString()
-    }));
+      substackUrl: feed.substackUrl || page.publication_url,
+      logo: page.logo_url || feed.logo || '',
+      postCount: posts.length
+    });
   } catch (e) {
-    res.status(500).send(notFoundHTML(slug));
+    res.status(500).json({ error: e.message });
   }
+});
+
+// ─── Public portfolio page (instant shell, posts load client-side) ───────────
+app.get('/:slug', async (req, res) => {
+  const slug = req.params.slug.toLowerCase();
+  if (['api', 'login', 'dashboard', 'favicon.ico'].includes(slug)) return res.status(404).end();
+
+  const { data: page, error } = await supabase.from('pages')
+    .select('*').eq('slug', slug).single();
+
+  if (!page) return res.status(404).send(notFoundHTML(slug));
+
+  // Serve the page shell instantly — posts load via JS
+  res.send(renderPageShell({
+    slug: page.slug,
+    displayName: page.display_name,
+    logoUrl: page.logo_url || '',
+    imageStyle: page.image_style,
+    publicationUrl: page.publication_url
+  }));
 });
 
 // ─── Portfolio page renderer ─────────────────────────────────────────────────
@@ -529,7 +537,7 @@ const styleFonts = {
   }
 };
 
-function renderPage({ slug, displayName, logoUrl, imageStyle, substackUrl, posts, updatedAt }) {
+function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUrl }) {
   let header;
   if (logoUrl) {
     header = `<img class="logo" src="${esc(logoUrl)}" alt="${esc(displayName)}" />\n    <div class="site-name sub">${esc(displayName)}</div>`;
@@ -539,19 +547,6 @@ function renderPage({ slug, displayName, logoUrl, imageStyle, substackUrl, posts
 
   const style = imageStyle || 'broadsheet';
   const fonts = styleFonts[style] || styleFonts.broadsheet;
-
-  const cards = posts.map(p => {
-    const imgTag = p.img
-      ? `<img src="${p.img}" alt="${esc(p.title)}" loading="lazy" onerror="this.style.display='none'" />`
-      : '';
-    return `
-    <a class="card" href="${p.link}" target="_blank" rel="noopener">
-      ${imgTag}
-      <div class="overlay">
-        <span class="card-title">${esc(p.title)}</span>
-      </div>
-    </a>`;
-  }).join('\n');
 
   const styleCSS = {
     broadsheet: `
@@ -634,6 +629,38 @@ function renderPage({ slug, displayName, logoUrl, imageStyle, substackUrl, posts
     }
     .overlay { position: absolute; inset: 0; pointer-events: none; }
     ${styleCSS[style] || styleCSS.broadsheet}
+
+    /* Loading animation */
+    .loading-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 60px 24px; gap: 16px;
+    }
+    .loader {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 52px;
+    }
+    .loader span {
+      width: 16px; height: 16px; border-radius: 3px; background: #e0e0e0;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .loader span:nth-child(2) { animation-delay: 0.1s; }
+    .loader span:nth-child(3) { animation-delay: 0.2s; }
+    .loader span:nth-child(4) { animation-delay: 0.1s; }
+    .loader span:nth-child(5) { animation-delay: 0.2s; }
+    .loader span:nth-child(6) { animation-delay: 0.3s; }
+    .loader span:nth-child(7) { animation-delay: 0.2s; }
+    .loader span:nth-child(8) { animation-delay: 0.3s; }
+    .loader span:nth-child(9) { animation-delay: 0.4s; }
+    @keyframes pulse {
+      0%, 100% { background: #e8e8e8; }
+      50% { background: #ccc; }
+    }
+    .loading-text { font-size: 13px; color: #bbb; }
+    .card { opacity: 0; animation: cardIn 0.3s ease forwards; }
+    @keyframes cardIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
     footer { text-align: center; padding: 36px 24px; font-size: 11px; color: #ccc; letter-spacing: 0.04em; }
     footer a { color: #ccc; text-decoration: none; }
     footer a:hover { color: #999; }
@@ -642,13 +669,78 @@ function renderPage({ slug, displayName, logoUrl, imageStyle, substackUrl, posts
 <body>
   <header>
     ${header}
-    <a class="subscribe-btn" href="${esc(substackUrl)}/subscribe" target="_blank" rel="noopener">Subscribe</a>
+    <a class="subscribe-btn" id="subscribeBtn" href="#" target="_blank" rel="noopener">Subscribe</a>
     <p class="instruction">Tap a story to read</p>
   </header>
-  <main class="grid">${cards}</main>
-  <footer>
-    Powered by <a href="/">stack.pub</a> &middot; ${posts.length} stories &middot; Updated ${new Date(updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+
+  <div class="loading-wrap" id="loading">
+    <div class="loader"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <p class="loading-text">Loading stories...</p>
+  </div>
+
+  <main class="grid" id="grid"></main>
+
+  <footer id="footer" style="display:none;">
+    Powered by <a href="/">stack.pub</a> &middot; <span id="postCount">0</span> stories
   </footer>
+
+  <script>
+    const slug = '${esc(slug)}';
+    async function loadPosts() {
+      try {
+        const res = await fetch('/api/posts/' + slug);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+
+        // Update subscribe link
+        if (data.substackUrl) {
+          document.getElementById('subscribeBtn').href = data.substackUrl + '/subscribe';
+        }
+
+        // Render cards with staggered animation
+        const grid = document.getElementById('grid');
+        data.posts.forEach((p, i) => {
+          const card = document.createElement('a');
+          card.className = 'card';
+          card.href = p.link;
+          card.target = '_blank';
+          card.rel = 'noopener';
+          card.style.animationDelay = (i * 0.03) + 's';
+
+          if (p.img) {
+            const img = document.createElement('img');
+            img.src = p.img;
+            img.alt = '';
+            img.loading = 'lazy';
+            img.onerror = function() { this.style.display = 'none'; };
+            card.appendChild(img);
+          }
+          const ov = document.createElement('div');
+          ov.className = 'overlay';
+          ov.innerHTML = '<span class="card-title">' + escHTML(p.title) + '</span>';
+          card.appendChild(ov);
+          grid.appendChild(card);
+        });
+
+        // Update footer
+        document.getElementById('postCount').textContent = data.posts.length;
+        document.getElementById('footer').style.display = 'block';
+
+        // Hide loading
+        document.getElementById('loading').style.display = 'none';
+      } catch (e) {
+        document.getElementById('loading').innerHTML = '<p class="loading-text">Could not load stories. Please try again.</p>';
+      }
+    }
+
+    function escHTML(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    loadPosts();
+  </script>
 </body>
 </html>`;
 }
