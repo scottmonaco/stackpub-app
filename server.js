@@ -41,11 +41,7 @@ async function requireAuth(req, res, next) {
   next();
 }
 
-// ─── Feed fetching (same as before) ──────────────────────────────────────────
-function getBaseUrls(publication) {
-  if (publication.includes('.')) return [`https://${publication}`];
-  return [`https://${publication}.substack.com`];
-}
+// ─── Feed fetching ──────────────────────────────────────────────────────────
 
 function parseSubstackUrl(input) {
   let clean = input.trim().toLowerCase();
@@ -56,28 +52,94 @@ function parseSubstackUrl(input) {
   return clean.split('/')[0];
 }
 
+// Discover the Substack subdomain from a custom domain
+async function discoverSubstackSubdomain(customDomain) {
+  try {
+    // Try fetching the custom domain's homepage and look for Substack references
+    const res = await fetch(`https://${customDomain}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
+      redirect: 'manual'
+    });
+    // Check if it redirects to a .substack.com URL
+    const location = res.headers.get('location') || '';
+    const match = location.match(/([a-z0-9_-]+)\.substack\.com/);
+    if (match) return match[1];
+
+    // Try the publication API on the custom domain to get the subdomain
+    const pubRes = await fetch(`https://${customDomain}/api/v1/publication`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' }
+    });
+    if (pubRes.ok) {
+      const meta = await pubRes.json();
+      if (meta.subdomain) return meta.subdomain;
+    }
+  } catch (e) {}
+  return null;
+}
+
 async function fetchViaAPI(publication) {
-  const baseUrls = getBaseUrls(publication);
+  const isCustomDomain = publication.includes('.');
+
+  // Build list of base URLs to try
+  const baseUrls = [];
+  if (isCustomDomain) {
+    baseUrls.push(`https://${publication}`);
+    // Try to discover the Substack subdomain
+    const subdomain = await discoverSubstackSubdomain(publication);
+    if (subdomain) {
+      baseUrls.push(`https://${subdomain}.substack.com`);
+      console.log(`Discovered subdomain: ${subdomain} for ${publication}`);
+    }
+  } else {
+    baseUrls.push(`https://${publication}.substack.com`);
+  }
+
   let lastError;
   for (const baseUrl of baseUrls) {
     try {
+      console.log(`Trying API at: ${baseUrl}/api/v1/archive`);
       let allPosts = [];
       let offset = 0;
       const limit = 50;
       const maxPosts = 500;
+
       while (offset < maxPosts) {
         const url = `${baseUrl}/api/v1/archive?sort=new&limit=${limit}&offset=${offset}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         const res = await fetch(url, {
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
-          timeout: 8000
+          signal: controller.signal,
+          redirect: 'follow'
         });
-        if (!res.ok) throw new Error('API not available');
-        const data = await res.json();
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          console.log(`API returned ${res.status} at ${url}`);
+          throw new Error(`API returned ${res.status}`);
+        }
+
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          console.log(`API returned non-JSON at ${url}`);
+          throw new Error('Non-JSON response');
+        }
+
         if (!Array.isArray(data) || data.length === 0) break;
+
+        console.log(`Got ${data.length} posts at offset ${offset} from ${baseUrl}`);
+
+        // Use the custom domain for post links if available
+        const linkBase = isCustomDomain ? `https://${publication}` : baseUrl;
+
         for (const post of data) {
           const title = post.title || '';
           const slug = post.slug || '';
-          const link = `${baseUrl}/p/${slug}`;
+          const link = `${linkBase}/p/${slug}`;
           const img = post.cover_image || '';
           const postType = post.type || 'newsletter';
           const isArticle = (postType === 'newsletter' || postType === 'thread');
@@ -89,14 +151,17 @@ async function fetchViaAPI(publication) {
         if (data.length < limit) break;
         offset += limit;
       }
+
       if (allPosts.length === 0) continue;
+
+      console.log(`Total posts fetched via API: ${allPosts.length}`);
+
       let name = publication;
       let logo = '';
-      let substackUrl = baseUrl;
+      let substackUrl = isCustomDomain ? `https://${publication}` : baseUrl;
       try {
         const metaRes = await fetch(`${baseUrl}/api/v1/publication`, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
-          timeout: 5000
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' }
         });
         if (metaRes.ok) {
           const meta = await metaRes.json();
@@ -106,12 +171,16 @@ async function fetchViaAPI(publication) {
         }
       } catch (e) {}
       return { name, logo, substackUrl, posts: allPosts };
-    } catch (e) { lastError = e; }
+    } catch (e) {
+      console.log(`API failed for ${baseUrl}: ${e.message}`);
+      lastError = e;
+    }
   }
   throw lastError || new Error('API not available');
 }
 
 async function fetchViaRSS(publication) {
+  console.log(`Falling back to RSS for ${publication} (limited to ~20 posts)`);
   const isCustomDomain = publication.includes('.');
   const urls = isCustomDomain
     ? [`https://${publication}/feed`]
@@ -119,10 +188,14 @@ async function fetchViaRSS(publication) {
   let lastError;
   for (const url of urls) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
-        redirect: 'follow', timeout: 8000
+        redirect: 'follow',
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`Could not fetch feed`);
       const xml = await res.text();
       if (!xml.includes('<rss')) throw new Error('Invalid RSS');
@@ -154,6 +227,7 @@ async function fetchViaRSS(publication) {
           : `${link}?utm_source=stackpub&utm_medium=portfolio&utm_campaign=grid`;
         return { title, link: utmLink, img, isArticle };
       }).filter(p => p.title && p.link);
+      console.log(`RSS returned ${posts.length} posts for ${publication}`);
       const name = channel.title || publication;
       const logo = channel.image?.url || '';
       const substackUrl = channel.link || `https://${publication}${isCustomDomain ? '' : '.substack.com'}`;
@@ -167,7 +241,9 @@ async function fetchSubstackFeed(publication) {
   try {
     const result = await fetchViaAPI(publication);
     if (result.posts.length > 0) return result;
-  } catch (e) {}
+  } catch (e) {
+    console.log(`API route failed entirely for ${publication}, trying RSS`);
+  }
   return await fetchViaRSS(publication);
 }
 
@@ -318,6 +394,28 @@ app.post('/api/upload-logo', requireAuth, async (req, res) => {
     .eq('user_id', req.user.id);
 
   res.json({ ok: true, logoUrl });
+});
+
+// Debug endpoint — test feed fetching
+app.get('/api/debug-feed/:publication', async (req, res) => {
+  const publication = req.params.publication;
+  const logs = [];
+  const origLog = console.log;
+  console.log = (...args) => { logs.push(args.join(' ')); origLog(...args); };
+  try {
+    const feed = await fetchSubstackFeed(publication);
+    console.log = origLog;
+    res.json({
+      success: true,
+      postCount: feed.posts.length,
+      name: feed.name,
+      logo: feed.logo ? 'yes' : 'no',
+      logs
+    });
+  } catch (e) {
+    console.log = origLog;
+    res.json({ success: false, error: e.message, logs });
+  }
 });
 
 // ─── Static pages ────────────────────────────────────────────────────────────
