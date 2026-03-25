@@ -100,11 +100,11 @@ async function fetchViaAPI(publication) {
       console.log(`Trying API at: ${baseUrl}/api/v1/archive`);
       let allPosts = [];
       let offset = 0;
-      const limit = 50;
+      const limit = 12;
       const maxPosts = 500;
 
       while (offset < maxPosts) {
-        const url = `${baseUrl}/api/v1/archive?sort=new&limit=${limit}&offset=${offset}`;
+        const url = `${baseUrl}/api/v1/archive?sort=new&search=&offset=${offset}&limit=${limit}`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
