@@ -410,12 +410,64 @@ app.get('/api/debug-feed/:publication', async (req, res) => {
       postCount: feed.posts.length,
       name: feed.name,
       logo: feed.logo ? 'yes' : 'no',
+      sampleTitles: feed.posts.slice(0, 3).map(p => p.title),
+      lastTitles: feed.posts.slice(-3).map(p => p.title),
       logs
     });
   } catch (e) {
     console.log = origLog;
     res.json({ success: false, error: e.message, logs });
   }
+});
+
+// Debug: test RSS pagination specifically
+app.get('/api/debug-rss/:publication', async (req, res) => {
+  const publication = req.params.publication;
+  const isCustomDomain = publication.includes('.');
+  const baseUrl = isCustomDomain
+    ? `https://${publication}/feed`
+    : `https://${publication}.substack.com/feed`;
+
+  const results = [];
+  let allLinks = new Set();
+  let totalNew = 0;
+
+  for (let page = 1; page <= 10; page++) {
+    const url = page === 1 ? baseUrl : `${baseUrl}?page=${page}`;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
+        redirect: 'follow',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!r.ok) { results.push({ page, status: r.status, items: 0 }); break; }
+      const xml = await r.text();
+      if (!xml.includes('<rss')) { results.push({ page, error: 'not RSS', items: 0 }); break; }
+      const parsed = await xml2js.parseStringPromise(xml, { explicitArray: false });
+      const channel = parsed.rss.channel;
+      const items = Array.isArray(channel.item) ? channel.item : channel.item ? [channel.item] : [];
+
+      let newOnPage = 0;
+      for (const item of items) {
+        const link = item.link || '';
+        if (link && !allLinks.has(link)) {
+          allLinks.add(link);
+          newOnPage++;
+          totalNew++;
+        }
+      }
+      results.push({ page, itemsOnPage: items.length, newItems: newOnPage, totalSoFar: totalNew });
+      if (newOnPage === 0) break;
+    } catch (e) {
+      results.push({ page, error: e.message });
+      break;
+    }
+  }
+
+  res.json({ totalUniquePosts: totalNew, pages: results });
 });
 
 // ─── Static pages ────────────────────────────────────────────────────────────
