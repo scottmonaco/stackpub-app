@@ -575,7 +575,7 @@ function getTextStyleCSS(textStyle, fonts) {
         text-align: center; padding: 6cqi; background: rgba(0,0,0,0.18);
       }
       .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400; font-size: 18cqi;
+        font-family: ${fonts.title}; font-weight: 400; font-size: 14cqi;
         color: rgba(255,255,255,0.75); text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
         text-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 28px rgba(0,0,0,0.35);
         display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
