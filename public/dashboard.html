@@ -63,6 +63,14 @@
     .style-step-label { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
     .style-step-hint { font-size: 12px; color: #aaa; margin-bottom: 10px; }
     .style-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    @media (max-width: 540px) {
+      .style-grid {
+        display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+        gap: 10px; padding-bottom: 8px; -webkit-overflow-scrolling: touch;
+      }
+      .style-grid::-webkit-scrollbar { display: none; }
+      .style-grid .style-option { flex: 0 0 42%; scroll-snap-align: start; }
+    }
     .style-option { border: 2px solid #eee; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative; }
     .style-option:hover { border-color: #ccc; }
     .style-option.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.08); }
@@ -213,6 +221,9 @@
         <a id="viewAfterSave" href="#" target="_blank">View your page</a>
       </div>
       <div class="error" id="editError"></div>
+      <div style="margin-top:24px;padding:16px;background:#f8f8f6;border-radius:10px;font-size:12px;color:#999;line-height:1.6;text-align:center;">
+        Your page updates automatically every time you publish a new story. Come back anytime to change your style.
+      </div>
     </div>
   </div>
 
