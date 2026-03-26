@@ -277,7 +277,7 @@ app.post('/api/preview', async (req, res) => {
 
 // Claim a page (requires auth)
 app.post('/api/claim', requireAuth, async (req, res) => {
-  const { publicationUrl, slug, displayName, imageStyle } = req.body;
+  const { publicationUrl, slug, displayName, textStyle } = req.body;
   if (!publicationUrl || !slug || !displayName) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -316,7 +316,9 @@ app.post('/api/claim', requireAuth, async (req, res) => {
     publication_url: publicationUrl,
     display_name: displayName,
     logo_url: logo,
-    image_style: imageStyle || 'broadsheet',
+    text_style: textStyle || 'broadsheet',
+    image_filter: 'none',
+    color_overlay: 'none',
     exclude_no_image: true
   }).select().single();
 
@@ -328,10 +330,12 @@ app.post('/api/claim', requireAuth, async (req, res) => {
 
 // Update page settings (requires auth)
 app.put('/api/page', requireAuth, async (req, res) => {
-  const { displayName, imageStyle, logoUrl, excludeNoImage } = req.body;
+  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage } = req.body;
   const updates = {};
   if (displayName !== undefined) updates.display_name = displayName;
-  if (imageStyle !== undefined) updates.image_style = imageStyle;
+  if (textStyle !== undefined) updates.text_style = textStyle;
+  if (imageFilter !== undefined) updates.image_filter = imageFilter;
+  if (colorOverlay !== undefined) updates.color_overlay = colorOverlay;
   if (logoUrl !== undefined) updates.logo_url = logoUrl;
   if (excludeNoImage !== undefined) updates.exclude_no_image = excludeNoImage;
   updates.updated_at = new Date().toISOString();
@@ -513,13 +517,15 @@ app.get('/:slug', async (req, res) => {
     slug: page.slug,
     displayName: page.display_name,
     logoUrl: page.logo_url || '',
-    imageStyle: page.image_style,
+    textStyle: page.text_style || 'broadsheet',
+    imageFilter: page.image_filter || 'none',
+    colorOverlay: page.color_overlay || 'none',
     publicationUrl: page.publication_url
   }));
 });
 
-// ─── Portfolio page renderer ─────────────────────────────────────────────────
-const styleFonts = {
+// ─── Portfolio page renderer (composable styles) ─────────────────────────────
+const textStyleFonts = {
   broadsheet: {
     import: "family=Sora:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
     title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
@@ -531,54 +537,18 @@ const styleFonts = {
   billboard: {
     import: "family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
     title: "'Bebas Neue', sans-serif", body: "'DM Sans', sans-serif"
-  },
-  vintage: {
-    import: "family=Newsreader:ital,wght@1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Newsreader', serif", body: "'DM Sans', sans-serif"
-  },
-  pop: {
-    import: "family=Sora:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
-  },
-  noir: {
-    import: "family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Bebas Neue', sans-serif", body: "'DM Sans', sans-serif"
-  },
-  rose: {
-    import: "family=Newsreader:ital,wght@1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Newsreader', serif", body: "'DM Sans', sans-serif"
-  },
-  ocean: {
-    import: "family=Sora:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
-  },
-  gold: {
-    import: "family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Bebas Neue', sans-serif", body: "'DM Sans', sans-serif"
   }
 };
 
-function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUrl }) {
-  let header;
-  if (logoUrl) {
-    header = `<img class="logo" src="${esc(logoUrl)}" alt="${esc(displayName)}" />\n    <div class="site-name sub">${esc(displayName)}</div>`;
-  } else {
-    header = `<div class="site-name">${esc(displayName)}</div>`;
-  }
-
-  const style = imageStyle || 'broadsheet';
-  const fonts = styleFonts[style] || styleFonts.broadsheet;
-
-  const styleCSS = {
+function getTextStyleCSS(textStyle, fonts) {
+  const styles = {
     broadsheet: `
       .card .overlay {
-        display: flex; align-items: flex-start;
-        text-align: left; padding: 7cqi;
+        display: flex; align-items: flex-start; text-align: left; padding: 7cqi;
         background: linear-gradient(to bottom, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.35) 25%, rgba(0,0,0,0.12) 50%, transparent 100%);
       }
       .card .card-title {
-        font-family: ${fonts.title}; font-weight: 600;
-        font-size: 8.5cqi;
+        font-family: ${fonts.title}; font-weight: 600; font-size: 8.5cqi;
         color: #fff; line-height: 1.1; letter-spacing: -0.01em;
         text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5), 0 0 24px rgba(0,0,0,0.3);
       }`,
@@ -589,132 +559,72 @@ function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUr
         background: linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.35) 25%, rgba(0,0,0,0.12) 50%, transparent 100%);
       }
       .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400;
-        font-size: 12cqi;
+        font-family: ${fonts.title}; font-weight: 400; font-size: 12cqi;
         font-style: italic; color: #fff; line-height: 1.1;
         text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5), 0 0 24px rgba(0,0,0,0.3);
       }`,
     billboard: `
       .card .overlay {
         display: flex; align-items: center; justify-content: center;
-        text-align: center; padding: 6cqi;
-        background: rgba(0,0,0,0.18);
+        text-align: center; padding: 6cqi; background: rgba(0,0,0,0.18);
       }
       .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400;
-        font-size: 18cqi;
-        color: rgba(255,255,255,0.75);
-        text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
+        font-family: ${fonts.title}; font-weight: 400; font-size: 18cqi;
+        color: rgba(255,255,255,0.75); text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
         text-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 28px rgba(0,0,0,0.35);
-      }`,
-    vintage: `
-      .card img { filter: brightness(0.75) saturate(0.5) sepia(0.4) contrast(1.1); }
-      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0.6) sepia(0.3) contrast(1.05); transform: scale(1.03); }
-      .card .overlay {
-        display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-        text-align: center; padding: 7cqi;
-        background: linear-gradient(to top, rgba(40,25,10,0.65) 0%, rgba(40,25,10,0.3) 30%, transparent 100%);
-      }
-      .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400;
-        font-size: 12cqi;
-        font-style: italic; color: #f0e6d0; line-height: 1.1;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);
-      }`,
-    pop: `
-      .card img { filter: brightness(0.8) saturate(1.6) contrast(1.15); }
-      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.8) contrast(1.1); transform: scale(1.03); }
-      .card .overlay {
-        display: flex; align-items: flex-start;
-        text-align: left; padding: 7cqi;
-        background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 30%, transparent 100%);
-      }
-      .card .card-title {
-        font-family: ${fonts.title}; font-weight: 700;
-        font-size: 8.5cqi;
-        color: #fff; line-height: 1.1; letter-spacing: -0.01em;
-        text-shadow: 0 1px 4px rgba(0,0,0,0.8), 0 2px 12px rgba(0,0,0,0.5);
-      }`,
-    noir: `
-      .card img { filter: brightness(0.7) saturate(0) contrast(1.3); }
-      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0) contrast(1.2); transform: scale(1.03); }
-      .card .overlay {
-        display: flex; align-items: center; justify-content: center;
-        text-align: center; padding: 6cqi;
-        background: rgba(0,0,0,0.15);
-      }
-      .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400;
-        font-size: 18cqi;
-        color: rgba(255,255,255,0.8);
-        text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
-        text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 28px rgba(0,0,0,0.4);
-      }`,
-    rose: `
-      .card::after {
-        content: ''; position: absolute; inset: 0; z-index: 1;
-        background: rgba(180,60,100,0.35);
-        transition: opacity 0.5s ease; pointer-events: none;
-      }
-      .card:hover::after, .card:active::after { opacity: 0; }
-      .card img { filter: brightness(0.7) saturate(0.9); }
-      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1); transform: scale(1.03); }
-      .card .overlay {
-        z-index: 2;
-        display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-        text-align: center; padding: 7cqi;
-        background: linear-gradient(to top, rgba(120,30,60,0.5) 0%, transparent 50%);
-      }
-      .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400;
-        font-size: 12cqi;
-        font-style: italic; color: #fff; line-height: 1.1;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);
-      }`,
-    ocean: `
-      .card::after {
-        content: ''; position: absolute; inset: 0; z-index: 1;
-        background: rgba(20,60,120,0.4);
-        transition: opacity 0.5s ease; pointer-events: none;
-      }
-      .card:hover::after, .card:active::after { opacity: 0; }
-      .card img { filter: brightness(0.7) saturate(0.9); }
-      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1); transform: scale(1.03); }
-      .card .overlay {
-        z-index: 2;
-        display: flex; align-items: flex-start;
-        text-align: left; padding: 7cqi;
-        background: linear-gradient(to bottom, rgba(10,30,80,0.5) 0%, transparent 50%);
-      }
-      .card .card-title {
-        font-family: ${fonts.title}; font-weight: 600;
-        font-size: 8.5cqi;
-        color: #fff; line-height: 1.1; letter-spacing: -0.01em;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);
-      }`,
-    gold: `
-      .card::after {
-        content: ''; position: absolute; inset: 0; z-index: 1;
-        background: rgba(160,110,20,0.35);
-        transition: opacity 0.5s ease; pointer-events: none;
-      }
-      .card:hover::after, .card:active::after { opacity: 0; }
-      .card img { filter: brightness(0.7) saturate(0.9); }
-      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1); transform: scale(1.03); }
-      .card .overlay {
-        z-index: 2;
-        display: flex; align-items: center; justify-content: center;
-        text-align: center; padding: 6cqi;
-        background: rgba(0,0,0,0.1);
-      }
-      .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400;
-        font-size: 18cqi;
-        color: rgba(255,255,255,0.8);
-        text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
-        text-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 28px rgba(0,0,0,0.3);
       }`
   };
+  return styles[textStyle] || styles.broadsheet;
+}
+
+function getFilterCSS(imageFilter) {
+  const filters = {
+    none: '',
+    vintage: `
+      .card img { filter: brightness(0.75) saturate(0.5) sepia(0.4) contrast(1.1); }
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0.6) sepia(0.3) contrast(1.05); transform: scale(1.03); }`,
+    pop: `
+      .card img { filter: brightness(0.8) saturate(1.6) contrast(1.15); }
+      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.8) contrast(1.1); transform: scale(1.03); }`,
+    noir: `
+      .card img { filter: brightness(0.7) saturate(0) contrast(1.3); }
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0) contrast(1.2); transform: scale(1.03); }`
+  };
+  return filters[imageFilter] || '';
+}
+
+function getOverlayCSS(colorOverlay) {
+  const overlays = {
+    none: '',
+    rose: `
+      .card::after { content:''; position:absolute; inset:0; z-index:1; background:rgba(180,60,100,0.35); transition:opacity 0.5s ease; pointer-events:none; }
+      .card:hover::after, .card:active::after { opacity:0; }
+      .card .overlay { z-index:2; }`,
+    ocean: `
+      .card::after { content:''; position:absolute; inset:0; z-index:1; background:rgba(20,60,120,0.4); transition:opacity 0.5s ease; pointer-events:none; }
+      .card:hover::after, .card:active::after { opacity:0; }
+      .card .overlay { z-index:2; }`,
+    gold: `
+      .card::after { content:''; position:absolute; inset:0; z-index:1; background:rgba(160,110,20,0.35); transition:opacity 0.5s ease; pointer-events:none; }
+      .card:hover::after, .card:active::after { opacity:0; }
+      .card .overlay { z-index:2; }`
+  };
+  return overlays[colorOverlay] || '';
+}
+
+function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, colorOverlay, publicationUrl }) {
+  let header;
+  if (logoUrl) {
+    header = `<img class="logo" src="${esc(logoUrl)}" alt="${esc(displayName)}" />\n    <div class="site-name sub">${esc(displayName)}</div>`;
+  } else {
+    header = `<div class="site-name">${esc(displayName)}</div>`;
+  }
+
+  const ts = textStyle || 'broadsheet';
+  const fonts = textStyleFonts[ts] || textStyleFonts.broadsheet;
+  const textCSS = getTextStyleCSS(ts, fonts);
+  const filterCSS = getFilterCSS(imageFilter || 'none');
+  const overlayCSS = getOverlayCSS(colorOverlay || 'none');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -733,65 +643,30 @@ function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUr
     .logo { width: clamp(160px, 42vw, 280px); height: auto; display: block; }
     .site-name { font-weight: 700; font-size: clamp(24px, 5vw, 36px); letter-spacing: -0.02em; color: #1a1a1a; text-align: center; }
     .site-name.sub { font-size: clamp(14px, 3vw, 18px); font-weight: 400; color: #888; letter-spacing: 0.02em; margin-top: -4px; }
-    .subscribe-btn {
-      display: inline-block; padding: 11px 30px; margin-top: 6px;
-      background: #1a1a1a; color: #fff;
-      font-family: ${fonts.body}; font-weight: 600; font-size: 14px;
-      text-decoration: none; border-radius: 6px; transition: background 0.2s;
-    }
+    .subscribe-btn { display: inline-block; padding: 11px 30px; margin-top: 6px; background: #1a1a1a; color: #fff; font-family: ${fonts.body}; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 6px; transition: background 0.2s; }
     .subscribe-btn:hover { background: #333; }
     .instruction { font-weight: 300; font-size: 13px; color: #ccc; margin-top: 4px; }
     .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; margin-top: 10px; max-width: 935px; margin-left: auto; margin-right: auto; }
-    .card {
-      position: relative; aspect-ratio: 3/4; overflow: hidden;
-      display: block; text-decoration: none; background: #1a1a1a;
-      container-type: inline-size;
-    }
-    .card img {
-      width: 100%; height: 100%; object-fit: cover; display: block;
-      filter: brightness(0.7) saturate(0.9);
-      transition: filter 0.4s ease, transform 0.5s ease;
-    }
-    .card:hover img, .card:active img {
-      filter: brightness(0.95) saturate(1.1); transform: scale(1.03);
-    }
+    .card { position: relative; aspect-ratio: 3/4; overflow: hidden; display: block; text-decoration: none; background: #1a1a1a; container-type: inline-size; }
+    .card img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.7) saturate(0.9); transition: filter 0.4s ease, transform 0.5s ease; }
+    .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1); transform: scale(1.03); }
     .overlay { position: absolute; inset: 0; pointer-events: none; }
-    ${styleCSS[style] || styleCSS.broadsheet}
-
-    /* Loading animation */
-    .loading-wrap {
-      display: flex; flex-direction: column; align-items: center;
-      padding: 60px 24px; gap: 16px;
-    }
-    .loader {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 52px;
-    }
-    .loader span {
-      width: 16px; height: 16px; border-radius: 3px; background: #e0e0e0;
-      animation: pulse 1.2s ease-in-out infinite;
-    }
-    .loader span:nth-child(2) { animation-delay: 0.1s; }
-    .loader span:nth-child(3) { animation-delay: 0.2s; }
-    .loader span:nth-child(4) { animation-delay: 0.1s; }
-    .loader span:nth-child(5) { animation-delay: 0.2s; }
-    .loader span:nth-child(6) { animation-delay: 0.3s; }
-    .loader span:nth-child(7) { animation-delay: 0.2s; }
-    .loader span:nth-child(8) { animation-delay: 0.3s; }
-    .loader span:nth-child(9) { animation-delay: 0.4s; }
-    @keyframes pulse {
-      0%, 100% { background: #e8e8e8; }
-      50% { background: #ccc; }
-    }
+    ${textCSS}
+    ${filterCSS}
+    ${overlayCSS}
+    .loading-wrap { display: flex; flex-direction: column; align-items: center; padding: 60px 24px; gap: 16px; }
+    .loader { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 52px; }
+    .loader span { width: 16px; height: 16px; border-radius: 3px; background: #e0e0e0; animation: pulse 1.2s ease-in-out infinite; }
+    .loader span:nth-child(2) { animation-delay: 0.1s; } .loader span:nth-child(3) { animation-delay: 0.2s; }
+    .loader span:nth-child(4) { animation-delay: 0.1s; } .loader span:nth-child(5) { animation-delay: 0.2s; }
+    .loader span:nth-child(6) { animation-delay: 0.3s; } .loader span:nth-child(7) { animation-delay: 0.2s; }
+    .loader span:nth-child(8) { animation-delay: 0.3s; } .loader span:nth-child(9) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%, 100% { background: #e8e8e8; } 50% { background: #ccc; } }
     .loading-text { font-size: 13px; color: #bbb; }
     .card { opacity: 0; animation: cardIn 0.3s ease forwards; }
-    @keyframes cardIn {
-      from { opacity: 0; transform: scale(0.96); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
+    @keyframes cardIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
     footer { text-align: center; padding: 36px 24px; font-size: 11px; color: #ccc; letter-spacing: 0.04em; }
-    footer a { color: #ccc; text-decoration: none; }
-    footer a:hover { color: #999; }
+    footer a { color: #ccc; text-decoration: none; } footer a:hover { color: #999; }
   </style>
 </head>
 <body>
@@ -800,18 +675,14 @@ function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUr
     <a class="subscribe-btn" id="subscribeBtn" href="#" target="_blank" rel="noopener">Subscribe</a>
     <p class="instruction">Tap a story to read</p>
   </header>
-
   <div class="loading-wrap" id="loading">
     <div class="loader"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <p class="loading-text">Loading stories...</p>
   </div>
-
   <main class="grid" id="grid"></main>
-
   <footer id="footer" style="display:none;">
     Powered by <a href="/">stack.pub</a> &middot; <span id="postCount">0</span> stories
   </footer>
-
   <script>
     const slug = '${esc(slug)}';
     async function loadPosts() {
@@ -819,54 +690,23 @@ function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUr
         const res = await fetch('/api/posts/' + slug);
         if (!res.ok) throw new Error('Failed to load');
         const data = await res.json();
-
-        // Update subscribe link
-        if (data.substackUrl) {
-          document.getElementById('subscribeBtn').href = data.substackUrl + '/subscribe';
-        }
-
-        // Render cards with staggered animation
+        if (data.substackUrl) document.getElementById('subscribeBtn').href = data.substackUrl + '/subscribe';
         const grid = document.getElementById('grid');
         data.posts.forEach((p, i) => {
           const card = document.createElement('a');
-          card.className = 'card';
-          card.href = p.link;
-          card.target = '_blank';
-          card.rel = 'noopener';
+          card.className = 'card'; card.href = p.link; card.target = '_blank'; card.rel = 'noopener';
           card.style.animationDelay = (i * 0.03) + 's';
-
-          if (p.img) {
-            const img = document.createElement('img');
-            img.src = p.img;
-            img.alt = '';
-            img.loading = 'lazy';
-            img.onerror = function() { this.style.display = 'none'; };
-            card.appendChild(img);
-          }
-          const ov = document.createElement('div');
-          ov.className = 'overlay';
+          if (p.img) { const img = document.createElement('img'); img.src = p.img; img.alt = ''; img.loading = 'lazy'; img.onerror = function(){this.style.display='none'}; card.appendChild(img); }
+          const ov = document.createElement('div'); ov.className = 'overlay';
           ov.innerHTML = '<span class="card-title">' + escHTML(p.title) + '</span>';
-          card.appendChild(ov);
-          grid.appendChild(card);
+          card.appendChild(ov); grid.appendChild(card);
         });
-
-        // Update footer
         document.getElementById('postCount').textContent = data.posts.length;
         document.getElementById('footer').style.display = 'block';
-
-        // Hide loading
         document.getElementById('loading').style.display = 'none';
-      } catch (e) {
-        document.getElementById('loading').innerHTML = '<p class="loading-text">Could not load stories. Please try again.</p>';
-      }
+      } catch (e) { document.getElementById('loading').innerHTML = '<p class="loading-text">Could not load stories. Please try again.</p>'; }
     }
-
-    function escHTML(str) {
-      const d = document.createElement('div');
-      d.textContent = str;
-      return d.innerHTML;
-    }
-
+    function escHTML(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
     loadPosts();
   </script>
 </body>
