@@ -209,6 +209,7 @@
       <button class="btn" id="saveBtn" onclick="savePage()">Save changes</button>
       <div class="save-success" id="saveSuccess">
         <p>Changes saved!</p>
+        <p style="font-size:13px;color:#666;margin-bottom:10px;">Your page is live at <strong id="savedUrl"></strong></p>
         <a id="viewAfterSave" href="#" target="_blank">View your page</a>
       </div>
       <div class="error" id="editError"></div>
@@ -350,6 +351,7 @@
       document.getElementById('pageLink').textContent = 'stack.pub/' + p.slug;
       document.getElementById('pageLink').href = '/' + p.slug;
       document.getElementById('viewAfterSave').href = '/' + p.slug;
+      document.getElementById('savedUrl').textContent = 'stack.pub/' + p.slug;
 
       if (p.logo_url) {
         document.getElementById('logoThumb').innerHTML = '<img src="' + p.logo_url + '" alt="Logo" />';
