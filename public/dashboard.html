@@ -18,7 +18,7 @@
     .topbar-name { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
     .topbar-right { display: flex; align-items: center; gap: 12px; }
     .user-email { font-size: 13px; color: #888; }
-    .sign-out { font-size: 13px; color: #bbb; cursor: pointer; text-decoration: none; transition: color 0.2s; }
+    .sign-out { font-size: 13px; color: #bbb; cursor: pointer; text-decoration: none; }
     .sign-out:hover { color: #666; }
 
     .container { max-width: 560px; margin: 20px auto; padding: 0 24px; }
@@ -33,8 +33,8 @@
 
     .field { margin-bottom: 20px; }
     .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
-    .field input, .field select { width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; color: #1a1a1a; outline: none; transition: border-color 0.2s; background: #fafafa; }
-    .field input:focus, .field select:focus { border-color: #1a1a1a; background: #fff; }
+    .field input { width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; color: #1a1a1a; outline: none; transition: border-color 0.2s; background: #fafafa; }
+    .field input:focus { border-color: #1a1a1a; background: #fff; }
     .field input::placeholder { color: #bbb; }
     .field .hint { font-size: 12px; color: #aaa; margin-top: 5px; }
 
@@ -49,51 +49,50 @@
     .logo-row { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
     .logo-thumb { width: 56px; height: 56px; border-radius: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 10px; color: #bbb; flex-shrink: 0; }
     .logo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .upload-btn { display: inline-block; padding: 8px 16px; background: #1a1a1a; color: #fff; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; transition: background 0.2s; border: none; }
+    .upload-btn { display: inline-block; padding: 8px 16px; background: #1a1a1a; color: #fff; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; border: none; }
     .upload-btn:hover { background: #333; }
     .logo-note { font-size: 11px; color: #bbb; margin-top: 4px; }
     .logo-url-toggle { font-size: 12px; color: #888; cursor: pointer; margin-top: 4px; text-decoration: underline; display: inline-block; }
-    .logo-url-toggle:hover { color: #555; }
     .logo-url-input { display: none; margin-top: 8px; }
-    .logo-url-input input { font-size: 13px; padding: 10px 12px; }
 
-    /* Styles */
-    .style-section { margin-bottom: 20px; }
-    .style-section > label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
-    .style-hint { font-size: 12px; color: #aaa; margin-bottom: 10px; }
-    .style-label { font-size: 11px; font-weight: 600; color: #aaa; margin-top: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+    /* Style steps */
+    .style-step { margin-bottom: 22px; }
+    .style-step-label { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .style-step-hint { font-size: 12px; color: #aaa; margin-bottom: 10px; }
     .style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .style-grid.four { grid-template-columns: repeat(4, 1fr); }
     .style-option { border: 2px solid #eee; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative; }
     .style-option:hover { border-color: #ccc; }
     .style-option.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.08); }
-    .style-option .preview { aspect-ratio: 3/4; position: relative; overflow: hidden; container-type: inline-size; background: linear-gradient(145deg, #4a90a4 0%, #2d7a8e 40%, #1a5c6e 100%); }
+    .style-option .preview { aspect-ratio: 3/4; position: relative; overflow: hidden; container-type: inline-size; background: #1a1a1a; }
+    .style-option .preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .style-option .sname { text-align: center; padding: 7px; font-size: 11px; font-weight: 600; background: #fff; }
 
-    /* Preview text positions */
-    .sp-broadsheet .ov { position:absolute; inset:0; background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-start; padding:7cqi; }
-    .sp-broadsheet .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
-    .sp-byline .ov { position:absolute; inset:0; background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-end; justify-content:center; padding:7cqi; text-align:center; }
-    .sp-byline .ov span { font-family:'Newsreader',serif; font-weight:400; font-size:10cqi; font-style:italic; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
-    .sp-billboard .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:6cqi; }
-    .sp-billboard .ov span { font-family:'Bebas Neue',sans-serif; font-size:14cqi; color:rgba(255,255,255,0.7); text-transform:uppercase; line-height:0.92; letter-spacing:0.03em; }
-    .sp-vintage .preview { filter: sepia(0.4) saturate(0.6); }
-    .sp-vintage .ov { position:absolute; inset:0; background: linear-gradient(to top, rgba(40,25,10,0.5) 0%, transparent 50%); display:flex; align-items:flex-end; justify-content:center; padding:7cqi; text-align:center; }
-    .sp-vintage .ov span { font-family:'Newsreader',serif; font-weight:400; font-size:10cqi; font-style:italic; color:#f0e6d0; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
-    .sp-pop .preview { filter: saturate(1.6) contrast(1.1); }
-    .sp-pop .ov { position:absolute; inset:0; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 40%); display:flex; align-items:flex-start; padding:7cqi; }
-    .sp-pop .ov span { font-family:'Sora',sans-serif; font-weight:700; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
-    .sp-noir .preview { filter: saturate(0) contrast(1.3); }
-    .sp-noir .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:6cqi; }
-    .sp-noir .ov span { font-family:'Bebas Neue',sans-serif; font-size:14cqi; color:rgba(255,255,255,0.8); text-transform:uppercase; line-height:0.92; letter-spacing:0.03em; }
-    .sp-rose .preview::after { content:''; position:absolute; inset:0; background:rgba(180,60,100,0.35); }
-    .sp-rose .ov { position:absolute; inset:0; z-index:1; background: linear-gradient(to top, rgba(120,30,60,0.4) 0%, transparent 50%); display:flex; align-items:flex-end; justify-content:center; padding:7cqi; text-align:center; }
-    .sp-rose .ov span { font-family:'Newsreader',serif; font-weight:400; font-size:10cqi; font-style:italic; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
-    .sp-ocean .preview::after { content:''; position:absolute; inset:0; background:rgba(20,60,120,0.4); }
-    .sp-ocean .ov { position:absolute; inset:0; z-index:1; background: linear-gradient(to bottom, rgba(10,30,80,0.4) 0%, transparent 40%); display:flex; align-items:flex-start; padding:7cqi; }
-    .sp-ocean .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
-    .sp-gold .preview::after { content:''; position:absolute; inset:0; background:rgba(160,110,20,0.35); }
-    .sp-gold .ov { position:absolute; inset:0; z-index:1; display:flex; align-items:center; justify-content:center; text-align:center; padding:6cqi; }
-    .sp-gold .ov span { font-family:'Bebas Neue',sans-serif; font-size:14cqi; color:rgba(255,255,255,0.8); text-transform:uppercase; line-height:0.92; letter-spacing:0.03em; }
+    /* Text style previews */
+    .ts-broadsheet .preview img { filter: brightness(0.7) saturate(0.9); }
+    .ts-broadsheet .ov { position:absolute; inset:0; background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-start; padding:7cqi; }
+    .ts-broadsheet .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
+    .ts-byline .preview img { filter: brightness(0.7) saturate(0.9); }
+    .ts-byline .ov { position:absolute; inset:0; background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-end; justify-content:center; padding:7cqi; text-align:center; }
+    .ts-byline .ov span { font-family:'Newsreader',serif; font-weight:400; font-size:10cqi; font-style:italic; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
+    .ts-billboard .preview img { filter: brightness(0.7) saturate(0.9); }
+    .ts-billboard .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:6cqi; background:rgba(0,0,0,0.15); }
+    .ts-billboard .ov span { font-family:'Bebas Neue',sans-serif; font-size:14cqi; color:rgba(255,255,255,0.7); text-transform:uppercase; line-height:0.92; letter-spacing:0.03em; }
+
+    /* Filter previews — no text, just image effect */
+    .if-none .preview img { filter: brightness(0.7) saturate(0.9); }
+    .if-vintage .preview img { filter: brightness(0.75) saturate(0.5) sepia(0.4) contrast(1.1); }
+    .if-pop .preview img { filter: brightness(0.8) saturate(1.6) contrast(1.15); }
+    .if-noir .preview img { filter: brightness(0.7) saturate(0) contrast(1.3); }
+
+    /* Overlay previews — no text, just color tint */
+    .co-none .preview img { filter: brightness(0.7) saturate(0.9); }
+    .co-rose .preview img { filter: brightness(0.7) saturate(0.9); }
+    .co-rose .preview::after { content:''; position:absolute; inset:0; background:rgba(180,60,100,0.35); }
+    .co-ocean .preview img { filter: brightness(0.7) saturate(0.9); }
+    .co-ocean .preview::after { content:''; position:absolute; inset:0; background:rgba(20,60,120,0.4); }
+    .co-gold .preview img { filter: brightness(0.7) saturate(0.9); }
+    .co-gold .preview::after { content:''; position:absolute; inset:0; background:rgba(160,110,20,0.35); }
 
     .checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 24px; cursor: pointer; user-select: none; }
     .checkbox-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #1a1a1a; cursor: pointer; }
@@ -105,7 +104,7 @@
 
     .save-success { display: none; text-align: center; padding: 16px; background: #f0f9f0; border-radius: 10px; margin-top: 16px; }
     .save-success p { font-size: 14px; color: #43a047; font-weight: 600; margin-bottom: 8px; }
-    .save-success a { display: inline-block; padding: 10px 24px; background: #1a1a1a; color: #fff; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 8px; transition: background 0.2s; }
+    .save-success a { display: inline-block; padding: 10px 24px; background: #1a1a1a; color: #fff; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 8px; }
     .save-success a:hover { background: #333; }
 
     .error { font-size: 13px; color: #e05252; margin-top: 12px; display: none; text-align: center; }
@@ -145,13 +144,14 @@
         <input type="text" id="slugInput" placeholder="yourname" oninput="checkSlug()" />
         <div class="slug-preview" id="slugPreview">stack.pub/<strong>yourname</strong></div>
       </div>
-      <div class="style-section">
-        <label>Card style</label>
-        <div class="style-grid" id="claimStyleGrid"></div>
+      <div class="style-step">
+        <div class="style-step-label">Text style</div>
+        <div class="style-step-hint">Where and how your article title appears on each card.</div>
+        <div class="style-grid" id="claimTextGrid"></div>
       </div>
       <label class="checkbox-row">
         <input type="checkbox" id="ownershipConfirm" />
-        <span>I confirm that I own or am authorized to manage this publication. I understand that stack.pub reserves the right to remove any page if ownership is disputed.</span>
+        <span>I confirm that I own or am authorized to manage this publication.</span>
       </label>
       <button class="btn" id="claimBtn" onclick="claimPage()" disabled>Claim my page</button>
       <div class="error" id="claimError"></div>
@@ -176,20 +176,29 @@
         </div>
         <span class="logo-url-toggle" onclick="toggleLogoUrl()">Or paste an image URL</span>
         <div class="logo-url-input" id="logoUrlInput">
-          <input type="text" id="logoUrlField" placeholder="https://example.com/logo.png" class="field" style="width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px;" />
+          <input type="text" id="logoUrlField" placeholder="https://example.com/logo.png" style="width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px;outline:none;" />
         </div>
         <p class="hint" style="margin-top:6px;">No logo? Your publication name will be displayed as the header.</p>
       </div>
-      <div class="style-section">
-        <label>Card style</label>
-        <p class="style-hint">Choose how your article cards look.</p>
-        <div class="style-label">Free</div>
-        <div class="style-grid" id="editStyleGridFree"></div>
-        <div class="style-label">Filters</div>
-        <div class="style-grid" id="editStyleGridFilters"></div>
-        <div class="style-label">Color overlays</div>
-        <div class="style-grid" id="editStyleGridOverlays"></div>
+
+      <div class="style-step">
+        <div class="style-step-label">Step 1: Text style</div>
+        <div class="style-step-hint">Where and how your article title appears on each card.</div>
+        <div class="style-grid" id="editTextGrid"></div>
       </div>
+
+      <div class="style-step">
+        <div class="style-step-label">Step 2: Image filter <span style="font-weight:400;color:#aaa;font-size:11px;">(optional)</span></div>
+        <div class="style-step-hint">Change how your photos look. Leave on None for the default.</div>
+        <div class="style-grid four" id="editFilterGrid"></div>
+      </div>
+
+      <div class="style-step">
+        <div class="style-step-label">Step 3: Color overlay <span style="font-weight:400;color:#aaa;font-size:11px;">(optional)</span></div>
+        <div class="style-step-hint">Add a color tint that fades on hover to reveal the original photo.</div>
+        <div class="style-grid four" id="editOverlayGrid"></div>
+      </div>
+
       <label class="checkbox-row">
         <input type="checkbox" id="editExclude" />
         <span>Hide videos, podcasts, and imageless posts</span>
@@ -208,36 +217,59 @@
     const SUPABASE_URL = 'https://asuhkamvyfvtxeqyqdei.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_iRpJb4YxWsFTFgVt_drNaA_7AIuZ1cQ';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    let currentUser = null, currentPage = null, selectedStyle = 'broadsheet', editStyle = 'broadsheet', slugTimeout = null;
 
-    const ALL_STYLES = [
-      { id:'broadsheet', name:'Broadsheet', group:'free', cls:'sp-broadsheet' },
-      { id:'byline', name:'Byline', group:'free', cls:'sp-byline' },
-      { id:'billboard', name:'Billboard', group:'free', cls:'sp-billboard' },
-      { id:'vintage', name:'Vintage', group:'filters', cls:'sp-vintage' },
-      { id:'pop', name:'Pop', group:'filters', cls:'sp-pop' },
-      { id:'noir', name:'Noir', group:'filters', cls:'sp-noir' },
-      { id:'rose', name:'Rose', group:'overlays', cls:'sp-rose' },
-      { id:'ocean', name:'Ocean', group:'overlays', cls:'sp-ocean' },
-      { id:'gold', name:'Gold', group:'overlays', cls:'sp-gold' },
-    ];
+    let currentUser = null, currentPage = null, slugTimeout = null;
+    let chosenTextStyle = 'broadsheet';
+    let chosenFilter = 'none';
+    let chosenOverlay = 'none';
 
-    function buildStyleOption(s, gridId, activeStyle) {
+    const DEFAULT_IMG = '/stackpup-sample.jpg';
+    let previewImg = DEFAULT_IMG;
+
+    // Build a style option card with photo background
+    function makeOption(id, name, cls, gridId, imgSrc, overlayHTML) {
       const div = document.createElement('div');
-      div.className = 'style-option ' + s.cls + (s.id === activeStyle ? ' active' : '');
-      div.dataset.style = s.id;
-      div.innerHTML = '<div class="preview"><div class="ov"><span>Your title</span></div></div><div class="sname">' + s.name + '</div>';
-      div.onclick = () => {
-        const isEdit = gridId.startsWith('editStyleGrid');
-        if (isEdit) editStyle = s.id; else selectedStyle = s.id;
-        const card = isEdit ? document.getElementById('editCard') : document.getElementById('claimCard');
-        card.querySelectorAll('.style-option').forEach(el => el.classList.toggle('active', el.dataset.style === s.id));
-        updateClaimBtn();
-      };
+      div.className = 'style-option ' + cls;
+      div.dataset.id = id;
+      const inner = '<div class="preview"><img src="' + imgSrc + '" alt="" />' + (overlayHTML || '') + '</div><div class="sname">' + name + '</div>';
+      div.innerHTML = inner;
+      div.onclick = () => selectOption(gridId, id);
       document.getElementById(gridId).appendChild(div);
     }
 
-    // Init
+    function selectOption(gridId, id) {
+      const grid = document.getElementById(gridId);
+      grid.querySelectorAll('.style-option').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+      if (gridId.includes('Text')) chosenTextStyle = id;
+      if (gridId.includes('Filter')) chosenFilter = id;
+      if (gridId.includes('Overlay')) chosenOverlay = id;
+      updateClaimBtn();
+    }
+
+    function buildTextGrid(gridId, active, imgSrc) {
+      makeOption('broadsheet', 'Broadsheet', 'ts-broadsheet', gridId, imgSrc, '<div class="ov"><span>Your title</span></div>');
+      makeOption('byline', 'Byline', 'ts-byline', gridId, imgSrc, '<div class="ov"><span>Your title</span></div>');
+      makeOption('billboard', 'Billboard', 'ts-billboard', gridId, imgSrc, '<div class="ov"><span>Your title</span></div>');
+      selectOption(gridId, active);
+    }
+
+    function buildFilterGrid(gridId, active, imgSrc) {
+      makeOption('none', 'None', 'if-none', gridId, imgSrc, '');
+      makeOption('vintage', 'Vintage', 'if-vintage', gridId, imgSrc, '');
+      makeOption('pop', 'Pop', 'if-pop', gridId, imgSrc, '');
+      makeOption('noir', 'Noir', 'if-noir', gridId, imgSrc, '');
+      selectOption(gridId, active);
+    }
+
+    function buildOverlayGrid(gridId, active, imgSrc) {
+      makeOption('none', 'None', 'co-none', gridId, imgSrc, '');
+      makeOption('rose', 'Rose', 'co-rose', gridId, imgSrc, '');
+      makeOption('ocean', 'Ocean', 'co-ocean', gridId, imgSrc, '');
+      makeOption('gold', 'Gold', 'co-gold', gridId, imgSrc, '');
+      selectOption(gridId, active);
+    }
+
+    // ── Init ──
     async function init() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = '/login'; return; }
@@ -246,15 +278,18 @@
       const res = await fetch('/api/my-page', { headers: { 'Authorization': 'Bearer ' + session.access_token } });
       const data = await res.json();
       document.getElementById('loading').classList.add('hidden');
-      if (data.page) { currentPage = data.page; showEditFlow(); } else { showClaimFlow(); }
+      if (data.page) { currentPage = data.page; showEditFlow(); }
+      else { showClaimFlow(); }
     }
+
     async function signOut() { await sb.auth.signOut(); window.location.href = '/'; }
     async function getToken() { const { data: { session } } = await sb.auth.getSession(); return session?.access_token; }
 
-    // CLAIM
+    // ── CLAIM ──
     function showClaimFlow() {
       document.getElementById('claimCard').classList.remove('hidden');
-      ALL_STYLES.filter(s => s.group === 'free').forEach(s => buildStyleOption(s, 'claimStyleGrid', 'broadsheet'));
+      buildTextGrid('claimTextGrid', 'broadsheet', DEFAULT_IMG);
+
       document.getElementById('pubUrl').addEventListener('blur', function() {
         const url = this.value.trim();
         if (!url || document.getElementById('slugInput').value) return;
@@ -302,7 +337,7 @@
             publicationUrl: document.getElementById('pubUrl').value.trim(),
             slug: document.getElementById('slugInput').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''),
             displayName: document.getElementById('displayName').value.trim(),
-            imageStyle: selectedStyle
+            textStyle: chosenTextStyle
           })
         });
         const data = await res.json();
@@ -311,8 +346,8 @@
       } catch (e) { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Claim my page'; }
     }
 
-    // EDIT
-    function showEditFlow() {
+    // ── EDIT ──
+    async function showEditFlow() {
       document.getElementById('editCard').classList.remove('hidden');
       const p = currentPage;
       document.getElementById('editDisplayName').value = p.display_name;
@@ -320,11 +355,27 @@
       document.getElementById('pageLink').textContent = 'stack.pub/' + p.slug;
       document.getElementById('pageLink').href = '/' + p.slug;
       document.getElementById('viewAfterSave').href = '/' + p.slug;
-      editStyle = p.image_style;
-      ALL_STYLES.filter(s => s.group === 'free').forEach(s => buildStyleOption(s, 'editStyleGridFree', p.image_style));
-      ALL_STYLES.filter(s => s.group === 'filters').forEach(s => buildStyleOption(s, 'editStyleGridFilters', p.image_style));
-      ALL_STYLES.filter(s => s.group === 'overlays').forEach(s => buildStyleOption(s, 'editStyleGridOverlays', p.image_style));
       if (p.logo_url) document.getElementById('logoThumb').innerHTML = '<img src="' + p.logo_url + '" alt="Logo" />';
+
+      chosenTextStyle = p.text_style || 'broadsheet';
+      chosenFilter = p.image_filter || 'none';
+      chosenOverlay = p.color_overlay || 'none';
+
+      // Try to fetch user's first post image for previews
+      let img = DEFAULT_IMG;
+      try {
+        const res = await fetch('/api/posts/' + p.slug);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.posts && data.posts.length > 0 && data.posts[0].img) {
+            img = data.posts[0].img;
+          }
+        }
+      } catch (e) {}
+
+      buildTextGrid('editTextGrid', chosenTextStyle, img);
+      buildFilterGrid('editFilterGrid', chosenFilter, img);
+      buildOverlayGrid('editOverlayGrid', chosenOverlay, img);
     }
 
     function toggleLogoUrl() { document.getElementById('logoUrlInput').style.display = 'block'; }
@@ -334,7 +385,13 @@
       err.style.display = 'none'; success.style.display = 'none'; btn.textContent = 'Saving...'; btn.disabled = true;
       const logoUrlField = document.getElementById('logoUrlField').value.trim();
       try {
-        const body = { displayName: document.getElementById('editDisplayName').value.trim(), imageStyle: editStyle, excludeNoImage: document.getElementById('editExclude').checked };
+        const body = {
+          displayName: document.getElementById('editDisplayName').value.trim(),
+          textStyle: chosenTextStyle,
+          imageFilter: chosenFilter,
+          colorOverlay: chosenOverlay,
+          excludeNoImage: document.getElementById('editExclude').checked
+        };
         if (logoUrlField) body.logoUrl = logoUrlField;
         const res = await fetch('/api/page', {
           method: 'PUT',
