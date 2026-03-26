@@ -6,7 +6,7 @@ const cookieParser = require('cookie-parser');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 app.use(express.static('public'));
 
@@ -522,18 +522,39 @@ app.get('/:slug', async (req, res) => {
 const styleFonts = {
   broadsheet: {
     import: "family=Sora:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Sora', sans-serif",
-    body: "'DM Sans', sans-serif"
+    title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
   },
   byline: {
     import: "family=Newsreader:ital,wght@1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Newsreader', serif",
-    body: "'DM Sans', sans-serif"
+    title: "'Newsreader', serif", body: "'DM Sans', sans-serif"
   },
   billboard: {
     import: "family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Bebas Neue', sans-serif",
-    body: "'DM Sans', sans-serif"
+    title: "'Bebas Neue', sans-serif", body: "'DM Sans', sans-serif"
+  },
+  vintage: {
+    import: "family=Newsreader:ital,wght@1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Newsreader', serif", body: "'DM Sans', sans-serif"
+  },
+  pop: {
+    import: "family=Sora:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
+  },
+  noir: {
+    import: "family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Bebas Neue', sans-serif", body: "'DM Sans', sans-serif"
+  },
+  rose: {
+    import: "family=Newsreader:ital,wght@1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Newsreader', serif", body: "'DM Sans', sans-serif"
+  },
+  ocean: {
+    import: "family=Sora:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
+  },
+  gold: {
+    import: "family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Bebas Neue', sans-serif", body: "'DM Sans', sans-serif"
   }
 };
 
@@ -585,6 +606,113 @@ function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUr
         color: rgba(255,255,255,0.75);
         text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
         text-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 28px rgba(0,0,0,0.35);
+      }`,
+    vintage: `
+      .card img { filter: brightness(0.75) saturate(0.5) sepia(0.4) contrast(1.1); }
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0.6) sepia(0.3) contrast(1.05); transform: scale(1.03); }
+      .card .overlay {
+        display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+        text-align: center; padding: 7cqi;
+        background: linear-gradient(to top, rgba(40,25,10,0.65) 0%, rgba(40,25,10,0.3) 30%, transparent 100%);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 400;
+        font-size: 12cqi;
+        font-style: italic; color: #f0e6d0; line-height: 1.1;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);
+      }`,
+    pop: `
+      .card img { filter: brightness(0.8) saturate(1.6) contrast(1.15); }
+      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.8) contrast(1.1); transform: scale(1.03); }
+      .card .overlay {
+        display: flex; align-items: flex-start;
+        text-align: left; padding: 7cqi;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 30%, transparent 100%);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 700;
+        font-size: 8.5cqi;
+        color: #fff; line-height: 1.1; letter-spacing: -0.01em;
+        text-shadow: 0 1px 4px rgba(0,0,0,0.8), 0 2px 12px rgba(0,0,0,0.5);
+      }`,
+    noir: `
+      .card img { filter: brightness(0.7) saturate(0) contrast(1.3); }
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0) contrast(1.2); transform: scale(1.03); }
+      .card .overlay {
+        display: flex; align-items: center; justify-content: center;
+        text-align: center; padding: 6cqi;
+        background: rgba(0,0,0,0.15);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 400;
+        font-size: 18cqi;
+        color: rgba(255,255,255,0.8);
+        text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 28px rgba(0,0,0,0.4);
+      }`,
+    rose: `
+      .card::after {
+        content: ''; position: absolute; inset: 0; z-index: 1;
+        background: rgba(180,60,100,0.35);
+        transition: opacity 0.5s ease; pointer-events: none;
+      }
+      .card:hover::after, .card:active::after { opacity: 0; }
+      .card img { filter: brightness(0.7) saturate(0.9); }
+      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1); transform: scale(1.03); }
+      .card .overlay {
+        z-index: 2;
+        display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+        text-align: center; padding: 7cqi;
+        background: linear-gradient(to top, rgba(120,30,60,0.5) 0%, transparent 50%);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 400;
+        font-size: 12cqi;
+        font-style: italic; color: #fff; line-height: 1.1;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);
+      }`,
+    ocean: `
+      .card::after {
+        content: ''; position: absolute; inset: 0; z-index: 1;
+        background: rgba(20,60,120,0.4);
+        transition: opacity 0.5s ease; pointer-events: none;
+      }
+      .card:hover::after, .card:active::after { opacity: 0; }
+      .card img { filter: brightness(0.7) saturate(0.9); }
+      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1); transform: scale(1.03); }
+      .card .overlay {
+        z-index: 2;
+        display: flex; align-items: flex-start;
+        text-align: left; padding: 7cqi;
+        background: linear-gradient(to bottom, rgba(10,30,80,0.5) 0%, transparent 50%);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 600;
+        font-size: 8.5cqi;
+        color: #fff; line-height: 1.1; letter-spacing: -0.01em;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);
+      }`,
+    gold: `
+      .card::after {
+        content: ''; position: absolute; inset: 0; z-index: 1;
+        background: rgba(160,110,20,0.35);
+        transition: opacity 0.5s ease; pointer-events: none;
+      }
+      .card:hover::after, .card:active::after { opacity: 0; }
+      .card img { filter: brightness(0.7) saturate(0.9); }
+      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1); transform: scale(1.03); }
+      .card .overlay {
+        z-index: 2;
+        display: flex; align-items: center; justify-content: center;
+        text-align: center; padding: 6cqi;
+        background: rgba(0,0,0,0.1);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 400;
+        font-size: 18cqi;
+        color: rgba(255,255,255,0.8);
+        text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 28px rgba(0,0,0,0.3);
       }`
   };
 
@@ -613,7 +741,7 @@ function renderPageShell({ slug, displayName, logoUrl, imageStyle, publicationUr
     }
     .subscribe-btn:hover { background: #333; }
     .instruction { font-weight: 300; font-size: 13px; color: #ccc; margin-top: 4px; }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; margin-top: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; margin-top: 10px; max-width: 935px; margin-left: auto; margin-right: auto; }
     .card {
       position: relative; aspect-ratio: 3/4; overflow: hidden;
       display: block; text-decoration: none; background: #1a1a1a;
