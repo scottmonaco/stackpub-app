@@ -144,8 +144,7 @@ async function fetchViaAPI(publication) {
           const postType = post.type || 'newsletter';
           const isArticle = (postType === 'newsletter' || postType === 'thread');
           if (title && slug) {
-            const utmLink = `${link}?utm_source=stackpub&utm_medium=portfolio&utm_campaign=grid`;
-            allPosts.push({ title, link: utmLink, img, isArticle });
+            allPosts.push({ title, link: `${link}?ref=stackpub`, img, isArticle });
           }
         }
         if (data.length < limit) break;
@@ -222,10 +221,10 @@ async function fetchViaRSS(publication) {
           const match = content.match(/<img[^>]+src=["']([^"']+)["']/);
           if (match) img = match[1];
         }
-        const utmLink = link.includes('?')
-          ? `${link}&utm_source=stackpub&utm_medium=portfolio&utm_campaign=grid`
-          : `${link}?utm_source=stackpub&utm_medium=portfolio&utm_campaign=grid`;
-        return { title, link: utmLink, img, isArticle };
+        const refLink = link.includes('?')
+          ? `${link}&ref=stackpub`
+          : `${link}?ref=stackpub`;
+        return { title, link: refLink, img, isArticle };
       }).filter(p => p.title && p.link);
       console.log(`RSS returned ${posts.length} posts for ${publication}`);
       const name = channel.title || publication;
