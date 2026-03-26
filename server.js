@@ -537,6 +537,10 @@ const textStyleFonts = {
   billboard: {
     import: "family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
     title: "'Bebas Neue', sans-serif", body: "'DM Sans', sans-serif"
+  },
+  handwritten: {
+    import: "family=Caveat:wght@500;700&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Caveat', cursive", body: "'DM Sans', sans-serif"
   }
 };
 
@@ -551,6 +555,7 @@ function getTextStyleCSS(textStyle, fonts) {
         font-family: ${fonts.title}; font-weight: 600; font-size: 8.5cqi;
         color: #fff; line-height: 1.1; letter-spacing: -0.01em;
         text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5), 0 0 24px rgba(0,0,0,0.3);
+        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
       }`,
     byline: `
       .card .overlay {
@@ -562,6 +567,7 @@ function getTextStyleCSS(textStyle, fonts) {
         font-family: ${fonts.title}; font-weight: 400; font-size: 12cqi;
         font-style: italic; color: #fff; line-height: 1.1;
         text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5), 0 0 24px rgba(0,0,0,0.3);
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
       }`,
     billboard: `
       .card .overlay {
@@ -572,6 +578,18 @@ function getTextStyleCSS(textStyle, fonts) {
         font-family: ${fonts.title}; font-weight: 400; font-size: 18cqi;
         color: rgba(255,255,255,0.75); text-transform: uppercase; line-height: 0.92; letter-spacing: 0.03em;
         text-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 28px rgba(0,0,0,0.35);
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+      }`,
+    handwritten: `
+      .card .overlay {
+        display: flex; align-items: center; justify-content: center;
+        text-align: center; padding: 7cqi; background: rgba(0,0,0,0.15);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 700; font-size: 14cqi;
+        color: #fff; line-height: 1.15; letter-spacing: 0.01em;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.4);
+        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
       }`
   };
   return styles[textStyle] || styles.broadsheet;
