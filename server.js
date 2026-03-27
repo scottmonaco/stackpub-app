@@ -868,21 +868,22 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
         <a class="sp-modal-back" onclick="spResendCode()">Didn't get it? Resend code</a>
       </div>
 
-      <!-- Step W: Waitlist (non-Substack path) -->
+      <!-- Step W: Waitlist (unsupported platform) -->
       <div class="sp-step" id="spStepW">
         <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
-        <h2>We're on it</h2>
-        <p>stack.pub currently supports Substack newsletters. Support for <strong id="spWaitPlatform"></strong> is on the way.</p>
+        <h2>We're expanding</h2>
+        <p>We couldn't connect to this publication. stack.pub currently works with Substack newsletters. If you're on another platform, leave your email — we want to build for you.</p>
         <input class="sp-modal-input" id="spWaitEmail" type="email" placeholder="you@example.com" />
-        <button class="sp-modal-go" onclick="spJoinWaitlist()">Notify me when it's ready</button>
+        <button class="sp-modal-go" onclick="spJoinWaitlist()">Notify me</button>
         <p class="sp-modal-error" id="spErrorW"></p>
+        <a class="sp-modal-back" onclick="spGoStep(1)">&larr; Try a different URL</a>
       </div>
 
       <!-- Step WD: Waitlist done -->
       <div class="sp-step" id="spStepWD">
         <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
         <h2>You're on the list</h2>
-        <p>We'll email you as soon as your platform is supported. Thanks for your interest!</p>
+        <p>We'll let you know as soon as we can support your publication. Thanks for your interest!</p>
       </div>
 
     </div>
@@ -896,14 +897,6 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
 
     let spPubUrlValue = '';
     let spEmailValue = '';
-
-    // Non-Substack platform detection
-    const nonSubstackPlatforms = {
-      'medium.com': 'Medium', 'beehiiv.com': 'Beehiiv', 'ghost.io': 'Ghost',
-      'ghost.org': 'Ghost', 'buttondown.email': 'Buttondown', 'convertkit.com': 'ConvertKit',
-      'mailchimp.com': 'Mailchimp', 'revue.co': 'Revue', 'wordpress.com': 'WordPress',
-      'tinyletter.com': 'TinyLetter', 'getrevue.co': 'Revue', 'hubspot.com': 'HubSpot'
-    };
 
     function openModal() {
       // If already logged in, go straight to dashboard
@@ -932,7 +925,7 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
       document.getElementById('spWaitEmail').value = '';
       document.querySelectorAll('.sp-otp-row input').forEach(i => i.value = '');
       document.querySelectorAll('.sp-modal-error').forEach(e => { e.style.display = 'none'; e.textContent = ''; });
-      document.querySelectorAll('.sp-modal-go').forEach(b => { b.disabled = false; b.textContent = b.dataset.label || b.textContent; });
+      document.querySelectorAll('.sp-modal-go').forEach(b => { b.disabled = false; });
     }
 
     function spGoStep(n) {
@@ -946,26 +939,44 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
       el.textContent = msg; el.style.display = 'block';
     }
 
-    // Step 1: Check URL
-    function spContinueUrl() {
+    // Step 1: Validate URL against API
+    async function spContinueUrl() {
       const raw = document.getElementById('spPubUrl').value.trim();
       if (!raw) return spShowError('spError1', 'Please enter your newsletter URL.');
-      const v = raw.toLowerCase();
 
-      // Check for non-Substack platforms
-      for (const [domain, name] of Object.entries(nonSubstackPlatforms)) {
-        if (v.includes(domain)) {
-          spPubUrlValue = raw;
-          document.getElementById('spWaitPlatform').textContent = name;
-          spGoStep('spStepW');
-          return;
-        }
-      }
-
-      spPubUrlValue = raw;
+      const btn = document.querySelector('#spStep1 .sp-modal-go');
+      btn.disabled = true; btn.textContent = 'Checking...';
       document.getElementById('spError1').style.display = 'none';
-      spGoStep(2);
-      setTimeout(() => document.getElementById('spEmail').focus(), 100);
+
+      try {
+        const res = await fetch('/api/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicationUrl: raw })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.postCount > 0) {
+            // Valid Substack publication — proceed to email
+            spPubUrlValue = raw;
+            btn.disabled = false; btn.textContent = 'Continue';
+            spGoStep(2);
+            setTimeout(() => document.getElementById('spEmail').focus(), 100);
+            return;
+          }
+        }
+
+        // Could not validate — show waitlist
+        spPubUrlValue = raw;
+        btn.disabled = false; btn.textContent = 'Continue';
+        spGoStep('spStepW');
+      } catch (e) {
+        // Network error or server issue — show waitlist as fallback
+        spPubUrlValue = raw;
+        btn.disabled = false; btn.textContent = 'Continue';
+        spGoStep('spStepW');
+      }
     }
 
     // Step 2: Send OTP
@@ -1088,7 +1099,7 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
         spGoStep('spStepWD');
       } catch (e) {
         spShowError('spErrorW', 'Something went wrong. Please try again.');
-        btn.disabled = false; btn.textContent = 'Notify me when it\\'s ready';
+        btn.disabled = false; btn.textContent = 'Notify me';
       }
     }
 
