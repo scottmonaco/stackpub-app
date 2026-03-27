@@ -12,10 +12,8 @@
     body { font-family: 'DM Sans', sans-serif; color: #1a1a1a; min-height: 100vh; -webkit-font-smoothing: antialiased;
       display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
 
-    .logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 40px; }
-    .logo-mark { width: 32px; height: 32px; background: #1a1a1a; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-    .logo-mark svg { width: 18px; height: 18px; }
-    .logo-name { font-weight: 700; font-size: 22px; letter-spacing: -0.02em; }
+    .logo-row { display: flex; align-items: center; justify-content: center; margin-bottom: 40px; }
+    .logo-row svg { height: 36px; width: auto; display: block; }
 
     .card {
       background: #fff; border: 1px solid #eee; border-radius: 16px;
@@ -24,20 +22,6 @@
     }
     .card h1 { font-family: 'Lora', serif; font-size: 24px; font-weight: 600; margin-bottom: 8px; }
     .card p { font-size: 15px; color: #888; margin-bottom: 28px; line-height: 1.5; }
-
-    .google-btn {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      width: 100%; padding: 13px 20px;
-      background: #fff; border: 1px solid #ddd; border-radius: 10px;
-      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px;
-      color: #1a1a1a; cursor: pointer; transition: all 0.2s;
-    }
-    .google-btn:hover { border-color: #999; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .google-btn svg { width: 20px; height: 20px; }
-
-    .divider { display: flex; align-items: center; gap: 16px; margin: 24px 0; }
-    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
-    .divider span { font-size: 12px; color: #bbb; }
 
     .email-form { display: flex; flex-direction: column; gap: 10px; }
     .email-form input {
@@ -62,27 +46,16 @@
 <body>
 
   <div class="logo-row">
-    <div class="logo-mark">
-      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="#fff"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.3"/></svg>
-    </div>
-    <span class="logo-name">stack.pub</span>
+    <svg viewBox="10 5 220 70" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="12" width="18" height="24" rx="2" fill="#000000"/><rect x="41" y="12" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="62" y="12" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="20" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="41" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="62" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><text x="92" y="40" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="28" font-weight="500" fill="#000000" letter-spacing="-0.5">stack.pub</text></svg>
   </div>
 
   <div class="card">
-    <h1>Sign in</h1>
-    <p>Create your visual portfolio in seconds.</p>
-
-    <button class="google-btn" onclick="signInWithGoogle()">
-      <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-      Continue with Google
-    </button>
-
-    <div class="divider"><span>or</span></div>
+    <h1>Sign in or create an account</h1>
+    <p>Enter your email and we'll send you a link to sign in. No password needed.</p>
 
     <div class="email-form">
       <input type="email" id="email" placeholder="you@example.com" />
-      <button onclick="signInWithEmail()">Sign in with email</button>
-      <p class="email-note">We'll send you a magic link — no password needed.</p>
+      <button onclick="signInWithEmail()">Continue with email</button>
     </div>
 
     <div class="error" id="error"></div>
@@ -96,30 +69,23 @@
     const SUPABASE_KEY = 'sb_publishable_iRpJb4YxWsFTFgVt_drNaA_7AIuZ1cQ';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Check if already logged in
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session) window.location.href = '/dashboard';
     });
 
-    async function signInWithGoogle() {
-      const { error } = await sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin + '/dashboard' }
-      });
-      if (error) showError(error.message);
-    }
-
     async function signInWithEmail() {
       const email = document.getElementById('email').value.trim();
       if (!email) return showError('Please enter your email.');
+      const btn = document.querySelector('.email-form button');
+      btn.disabled = true; btn.textContent = 'Sending...';
       const { error } = await sb.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.origin + '/dashboard' }
       });
-      if (error) return showError(error.message);
+      if (error) { showError(error.message); btn.disabled = false; btn.textContent = 'Continue with email'; return; }
       document.querySelector('.card').innerHTML = `
         <h1 style="font-family:'Lora',serif;font-size:24px;margin-bottom:8px;">Check your email</h1>
-        <p style="font-size:15px;color:#888;line-height:1.5;">We sent a magic link to <strong>${email}</strong>. Click it to sign in.</p>
+        <p style="font-size:15px;color:#888;line-height:1.5;">We sent a sign-in link to <strong>${email}</strong>. Click it to continue.</p>
       `;
     }
 
