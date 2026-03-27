@@ -262,15 +262,17 @@ app.post('/api/preview', async (req, res) => {
   const publication = parseSubstackUrl(publicationUrl);
   if (!publication) return res.status(400).json({ error: 'Could not parse URL' });
   try {
-    const feed = await fetchSubstackFeed(publication);
+    // Use API only (no RSS fallback) to confirm this is actually a Substack publication
+    const feed = await fetchViaAPI(publication);
     res.json({
       name: feed.name,
       logo: feed.logo,
       postCount: feed.posts.length,
-      publication
+      publication,
+      verified: true
     });
   } catch (e) {
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ error: 'Could not verify as a Substack publication' });
   }
 });
 
