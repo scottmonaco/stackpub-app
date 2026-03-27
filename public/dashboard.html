@@ -480,6 +480,25 @@
       const p = currentPage;
       isPaid = p.is_paid || false;
 
+      // Check for ?upgraded=1 BEFORE building grids — unlock optimistically
+      const urlParams = new URLSearchParams(window.location.search);
+      const justUpgraded = urlParams.get('upgraded') === '1';
+      if (justUpgraded) {
+        isPaid = true;
+        window.history.replaceState({}, '', '/dashboard');
+        // Poll in background to confirm webhook has fired
+        (async function pollPaidStatus() {
+          for (let i = 0; i < 10; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+              const r = await fetch('/api/my-page', { headers: { 'Authorization': 'Bearer ' + await getToken() } });
+              const d = await r.json();
+              if (d.page && d.page.is_paid) { currentPage = d.page; return; }
+            } catch (e) {}
+          }
+        })();
+      }
+
       document.getElementById('editDisplayName').value = p.display_name;
       document.getElementById('editExclude').checked = p.exclude_no_image;
       document.getElementById('pageLink').textContent = 'stack.pub/' + p.slug;
@@ -514,7 +533,6 @@
       if (isPaid) {
         document.getElementById('billingCard').classList.remove('hidden');
         document.getElementById('upgradeCard').classList.add('hidden');
-        // Remove PRO badges from labels since they have access
         document.querySelectorAll('.pro-badge').forEach(b => b.style.display = 'none');
         // Fetch billing details
         try {
@@ -529,23 +547,6 @@
       } else {
         document.getElementById('upgradeCard').classList.remove('hidden');
         document.getElementById('billingCard').classList.add('hidden');
-      }
-
-      // Check for ?upgraded=1 param (just completed checkout)
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('upgraded') === '1') {
-        window.history.replaceState({}, '', '/dashboard');
-        // Refresh page data in case webhook already fired
-        const refreshRes = await fetch('/api/my-page', { headers: { 'Authorization': 'Bearer ' + await getToken() } });
-        const refreshData = await refreshRes.json();
-        if (refreshData.page && refreshData.page.is_paid) {
-          currentPage = refreshData.page;
-          isPaid = true;
-          document.getElementById('billingCard').classList.remove('hidden');
-          document.getElementById('upgradeCard').classList.add('hidden');
-          document.querySelectorAll('.pro-badge').forEach(b => b.style.display = 'none');
-          document.querySelectorAll('.style-option.locked').forEach(el => el.classList.remove('locked'));
-        }
       }
     }
 
