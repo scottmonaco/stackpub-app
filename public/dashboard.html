@@ -294,40 +294,55 @@
     // CLAIM
     function showClaimFlow() {
       document.getElementById('claimCard').classList.remove('hidden');
-      document.getElementById('pubUrl').addEventListener('blur', async function() {
+
+      // Auto-fill from ?pub= query param (from modal flow)
+      const urlParams = new URLSearchParams(window.location.search);
+      const prefillPub = urlParams.get('pub');
+      if (prefillPub) {
+        document.getElementById('pubUrl').value = prefillPub;
+        // Clean up URL bar
+        window.history.replaceState({}, '', '/dashboard');
+        // Trigger the auto-populate logic
+        autoPopulateFromUrl(prefillPub);
+      }
+
+      document.getElementById('pubUrl').addEventListener('blur', function() {
         const url = this.value.trim();
-        if (!url) return;
-        const clean = url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-        const m = clean.match(/^([a-z0-9_-]+)\.substack\.com/);
-        if (m && !document.getElementById('slugInput').value) {
-          document.getElementById('slugInput').value = m[1];
-          checkSlug();
-        }
-        // Auto-fetch publication name
-        if (!document.getElementById('displayName').value) {
-          try {
-            const res = await fetch('/api/preview', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ publicationUrl: url })
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.name && !document.getElementById('displayName').value) {
-                document.getElementById('displayName').value = data.name;
-                updateClaimBtn();
-              }
-            }
-          } catch (e) {}
-        }
+        if (url) autoPopulateFromUrl(url);
       });
+    }
+
+    async function autoPopulateFromUrl(url) {
+      const clean = url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const m = clean.match(/^([a-z0-9_-]+)\.substack\.com/);
+      if (m && !document.getElementById('slugInput').value) {
+        document.getElementById('slugInput').value = m[1];
+        checkSlug();
+      }
+      // Auto-fetch publication name
+      if (!document.getElementById('displayName').value) {
+        try {
+          const res = await fetch('/api/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ publicationUrl: url })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.name && !document.getElementById('displayName').value) {
+              document.getElementById('displayName').value = data.name;
+              updateClaimBtn();
+            }
+          }
+        } catch (e) {}
+      }
     }
 
     async function checkSlug() {
       const slug = document.getElementById('slugInput').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
       const p = document.getElementById('slugPreview');
       if (!slug) { p.innerHTML = 'stack.pub/<strong>yourname</strong>'; updateClaimBtn(); return; }
-      if (slug.length < 2) { p.innerHTML = 'stack.pub/<strong>' + slug + '</strong> — <span style="color:#aaa">min 2 characters</span>'; updateClaimBtn(); return; }
+      if (slug.length < 3) { p.innerHTML = 'stack.pub/<strong>' + slug + '</strong> — <span style="color:#aaa">min 3 characters</span>'; updateClaimBtn(); return; }
       p.innerHTML = 'stack.pub/<strong>' + slug + '</strong> — checking...';
       clearTimeout(slugTimeout);
       slugTimeout = setTimeout(async () => {
@@ -343,7 +358,7 @@
     function updateClaimBtn() {
       const ok = document.getElementById('pubUrl').value.trim()
         && document.getElementById('displayName').value.trim()
-        && document.getElementById('slugInput').value.trim().length >= 2
+        && document.getElementById('slugInput').value.trim().length >= 3
         && document.getElementById('ownershipConfirm').checked;
       document.getElementById('claimBtn').disabled = !ok;
     }
