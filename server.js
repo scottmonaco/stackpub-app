@@ -477,25 +477,75 @@ app.get('/api/debug-rss/:publication', async (req, res) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public/login.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard.html')));
+app.get('/coming-soon', (req, res) => {
+  const domain = req.query.domain || '';
+  res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Coming Soon — stack.pub</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Lora:wght@500;600&display=swap" rel="stylesheet" />
+  <style>*{box-sizing:border-box;margin:0;padding:0}html{background:#fafaf8}body{font-family:'DM Sans',sans-serif;color:#1a1a1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;-webkit-font-smoothing:antialiased}
+  .logo{margin-bottom:32px}.logo svg{height:36px;width:auto;display:block}
+  h1{font-family:'Lora',serif;font-size:28px;font-weight:600;margin-bottom:12px}
+  p{font-size:16px;color:#777;line-height:1.6;max-width:400px;margin-bottom:24px}
+  .domain{font-weight:600;color:#1a1a1a}
+  .email-form{display:flex;gap:8px;max-width:380px;width:100%}
+  .email-form input{flex:1;padding:12px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:15px;font-family:'DM Sans',sans-serif;outline:none}
+  .email-form input:focus{border-color:#1a1a1a}
+  .email-form button{padding:12px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;cursor:pointer}
+  .email-form button:hover{background:#333}
+  .success{display:none;font-size:14px;color:#43a047;font-weight:500}
+  </style></head><body>
+  <div class="logo"><svg viewBox="10 5 220 70" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="12" width="18" height="24" rx="2" fill="#000000"/><rect x="41" y="12" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="62" y="12" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="20" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="41" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="62" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><text x="92" y="40" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="28" font-weight="500" fill="#000000" letter-spacing="-0.5">stack.pub</text></svg></div>
+  <h1>Coming soon</h1>
+  <p>stack.pub currently supports Substack publications${domain ? `. We don't yet support <span class="domain">${esc(domain)}</span>` : ''}, but other platforms are on the way.</p>
+  <p>Leave your email and we'll notify you as soon as your platform is supported.</p>
+  <div class="email-form" id="form"><input type="email" id="csEmail" placeholder="you@example.com" /><button onclick="notify()">Notify me</button></div>
+  <p class="success" id="success">You're on the list! We'll be in touch.</p>
+  <script>
+  async function notify(){
+    const email=document.getElementById('csEmail').value.trim();
+    if(!email)return;
+    document.getElementById('form').style.display='none';
+    document.getElementById('success').style.display='block';
+  }
+  </script></body></html>`);
+});
 
 // ─── Posts API (for client-side loading) ─────────────────────────────────────
 app.get('/api/posts/:slug', async (req, res) => {
   const slug = req.params.slug.toLowerCase();
+  const preview = req.query.preview === '1';
   const { data: page } = await supabase.from('pages')
     .select('*').eq('slug', slug).single();
   if (!page) return res.status(404).json({ error: 'Page not found' });
 
   const publication = parseSubstackUrl(page.publication_url);
   try {
-    const feed = await fetchSubstackFeed(publication);
-    let posts = feed.posts;
-    if (page.exclude_no_image) posts = posts.filter(p => p.img && p.isArticle !== false);
-    res.json({
-      posts,
-      substackUrl: feed.substackUrl || page.publication_url,
-      logo: page.logo_url || feed.logo || '',
-      postCount: posts.length
-    });
+    let posts, feed;
+    if (preview) {
+      // Only fetch first batch (12 posts) for preview images
+      const isCustomDomain = publication.includes('.');
+      const baseUrl = isCustomDomain ? `https://${publication}` : `https://${publication}.substack.com`;
+      const url = `${baseUrl}/api/v1/archive?sort=new&search=&offset=0&limit=12`;
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' } });
+      if (r.ok) {
+        const data = await r.json();
+        posts = (Array.isArray(data) ? data : []).map(p => ({
+          title: p.title || '', link: '', img: p.cover_image || '', isArticle: true
+        })).filter(p => p.img);
+      } else {
+        posts = [];
+      }
+      res.json({ posts, substackUrl: page.publication_url, postCount: posts.length });
+    } else {
+      feed = await fetchSubstackFeed(publication);
+      posts = feed.posts;
+      if (page.exclude_no_image) posts = posts.filter(p => p.img && p.isArticle !== false);
+      res.json({
+        posts,
+        substackUrl: feed.substackUrl || page.publication_url,
+        logo: page.logo_url || feed.logo || '',
+        postCount: posts.length
+      });
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -519,15 +569,16 @@ app.get('/:slug', async (req, res) => {
     textStyle: page.text_style || 'broadsheet',
     imageFilter: page.image_filter || 'none',
     colorOverlay: page.color_overlay || 'none',
-    publicationUrl: page.publication_url
+    publicationUrl: page.publication_url,
+    isPaid: page.is_paid || false
   }));
 });
 
 // ─── Portfolio page renderer (composable styles) ─────────────────────────────
 const textStyleFonts = {
   broadsheet: {
-    import: "family=Sora:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
-    title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
+    import: "family=Inter:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Inter', sans-serif", body: "'DM Sans', sans-serif"
   },
   byline: {
     import: "family=Newsreader:ital,wght@1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
@@ -554,7 +605,7 @@ function getTextStyleCSS(textStyle, fonts) {
         font-family: ${fonts.title}; font-weight: 600; font-size: 8.5cqi;
         color: #fff; line-height: 1.1; letter-spacing: -0.01em;
         text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5), 0 0 24px rgba(0,0,0,0.3);
-        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+        display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
       }`,
     byline: `
       .card .overlay {
@@ -582,11 +633,11 @@ function getTextStyleCSS(textStyle, fonts) {
     handwritten: `
       .card .overlay {
         display: flex; align-items: center; justify-content: center;
-        text-align: center; padding: 7cqi; background: rgba(0,0,0,0.15);
+        text-align: center; padding: 5cqi 10cqi; background: rgba(0,0,0,0.15);
       }
       .card .card-title {
         font-family: ${fonts.title}; font-weight: 700; font-size: 14cqi;
-        color: #fff; line-height: 1.15; letter-spacing: 0.01em;
+        color: #fff; line-height: 1.15; letter-spacing: 0.02em;
         text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.4);
         display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
       }`
@@ -629,7 +680,7 @@ function getOverlayCSS(colorOverlay) {
   return overlays[colorOverlay] || '';
 }
 
-function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, colorOverlay, publicationUrl }) {
+function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, colorOverlay, publicationUrl, isPaid }) {
   let header;
   if (logoUrl) {
     header = `<img class="logo" src="${esc(logoUrl)}" alt="${esc(displayName)}" />\n    <div class="site-name sub">${esc(displayName)}</div>`;
@@ -684,6 +735,29 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
     @keyframes cardIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
     footer { text-align: center; padding: 36px 24px; font-size: 11px; color: #ccc; letter-spacing: 0.04em; }
     footer a { color: #ccc; text-decoration: none; } footer a:hover { color: #999; }
+    .sp-float {
+      position: fixed; bottom: 16px; right: 16px; z-index: 100;
+      background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      font-family: 'DM Sans', sans-serif; transition: all 0.3s ease;
+      cursor: pointer; text-decoration: none; color: #1a1a1a;
+    }
+    .sp-float:hover { box-shadow: 0 6px 28px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.08); }
+    .sp-float-icon { display: flex; flex-shrink: 0; }
+    .sp-float-icon svg { width: 26px; height: 26px; }
+    .sp-float-text { font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .sp-float-expanded { display: none; align-items: center; gap: 8px; }
+    .sp-float-input { padding: 7px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; outline: none; width: 180px; }
+    .sp-float-input:focus { border-color: #1a1a1a; }
+    .sp-float-go { padding: 7px 12px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+    .sp-float-go:hover { background: #333; }
+    .sp-float.open { cursor: default; }
+    .sp-float.open .sp-float-text { display: none; }
+    .sp-float.open .sp-float-expanded { display: flex; }
+    @media (max-width: 480px) {
+      .sp-float { bottom: 12px; right: 12px; left: 12px; justify-content: center; }
+      .sp-float-input { width: 140px; }
+    }
   </style>
 </head>
 <body>
@@ -700,7 +774,30 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
   <footer id="footer" style="display:none;">
     Powered by <a href="/">stack.pub</a> &middot; <span id="postCount">0</span> stories
   </footer>
+  ${!isPaid ? `
+  <div class="sp-float" id="spFloat" onclick="openFloat(event)">
+    <div class="sp-float-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
+    <span class="sp-float-text">Create yours free</span>
+    <div class="sp-float-expanded">
+      <input class="sp-float-input" id="spInput" type="text" placeholder="yourname.substack.com" onclick="event.stopPropagation()" />
+      <button class="sp-float-go" onclick="event.stopPropagation(); goCreate()">Go</button>
+    </div>
+  </div>
+  ` : ''}
   <script>
+    function openFloat(e) {
+      const f = document.getElementById('spFloat');
+      if (!f.classList.contains('open')) { f.classList.add('open'); document.getElementById('spInput').focus(); }
+    }
+    function goCreate() {
+      const v = document.getElementById('spInput').value.trim().toLowerCase();
+      if (!v) return;
+      if (v.includes('substack.com') || (!v.includes('.') && v.length > 1)) {
+        window.open('https://stack.pub/login', '_blank');
+      } else {
+        window.open('https://stack.pub/coming-soon?domain=' + encodeURIComponent(v), '_blank');
+      }
+    }
     const slug = '${esc(slug)}';
     async function loadPosts() {
       try {
