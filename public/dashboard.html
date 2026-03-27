@@ -12,10 +12,8 @@
     body { font-family: 'DM Sans', sans-serif; color: #1a1a1a; min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
     .topbar { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; max-width: 720px; margin: 0 auto; }
-    .topbar-left { display: flex; align-items: center; gap: 8px; }
-    .logo-mark { width: 28px; height: 28px; background: #1a1a1a; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
-    .logo-mark svg { width: 16px; height: 16px; }
-    .topbar-name { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+    .topbar-left { display: flex; align-items: center; }
+    .topbar-logo svg { height: 28px; width: auto; }
     .topbar-right { display: flex; align-items: center; gap: 12px; }
     .user-email { font-size: 13px; color: #888; }
     .sign-out { font-size: 13px; color: #bbb; cursor: pointer; text-decoration: none; }
@@ -127,8 +125,7 @@
 <body>
   <div class="topbar">
     <div class="topbar-left">
-      <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="#fff"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="#fff" opacity="0.3"/></svg></div>
-      <span class="topbar-name">stack.pub</span>
+      <div class="topbar-logo"><svg viewBox="10 5 220 70" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="12" width="18" height="24" rx="2" fill="#000000"/><rect x="41" y="12" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="62" y="12" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="20" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="41" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><rect x="62" y="39" width="18" height="24" rx="2" fill="#000000" fill-opacity="0.12"/><text x="92" y="40" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="28" font-weight="500" fill="#000000" letter-spacing="-0.5">stack.pub</text></svg></div>
     </div>
     <div class="topbar-right">
       <span class="user-email" id="userEmail"></span>
@@ -297,12 +294,32 @@
     // CLAIM
     function showClaimFlow() {
       document.getElementById('claimCard').classList.remove('hidden');
-      document.getElementById('pubUrl').addEventListener('blur', function() {
+      document.getElementById('pubUrl').addEventListener('blur', async function() {
         const url = this.value.trim();
-        if (!url || document.getElementById('slugInput').value) return;
+        if (!url) return;
         const clean = url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
         const m = clean.match(/^([a-z0-9_-]+)\.substack\.com/);
-        if (m) { document.getElementById('slugInput').value = m[1]; checkSlug(); }
+        if (m && !document.getElementById('slugInput').value) {
+          document.getElementById('slugInput').value = m[1];
+          checkSlug();
+        }
+        // Auto-fetch publication name
+        if (!document.getElementById('displayName').value) {
+          try {
+            const res = await fetch('/api/preview', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ publicationUrl: url })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.name && !document.getElementById('displayName').value) {
+                document.getElementById('displayName').value = data.name;
+                updateClaimBtn();
+              }
+            }
+          } catch (e) {}
+        }
       });
     }
 
@@ -376,7 +393,7 @@
 
       let img = DEFAULT_IMG;
       try {
-        const res = await fetch('/api/posts/' + p.slug);
+        const res = await fetch('/api/posts/' + p.slug + '?preview=1');
         if (res.ok) {
           const data = await res.json();
           if (data.posts && data.posts.length > 0 && data.posts[0].img) img = data.posts[0].img;
