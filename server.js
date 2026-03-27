@@ -510,10 +510,8 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
       cancel_url: `${req.headers.origin || 'https://stackpub-app-production.up.railway.app'}/dashboard`,
       metadata: { user_id: req.user.id, slug: page.slug },
       subscription_data: {
-        metadata: { user_id: req.user.id, slug: page.slug }
-      },
-      payment_intent_data: {
-        statement_descriptor: 'STACK.PUB'
+        metadata: { user_id: req.user.id, slug: page.slug },
+        description: 'STACK.PUB'
       }
     };
 
