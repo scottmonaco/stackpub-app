@@ -6,6 +6,73 @@ const cookieParser = require('cookie-parser');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
+
+// ─── Stripe setup ──────────────────────────────────────────────────────────
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const STRIPE_PRICE_MONTHLY = process.env.STRIPE_PRICE_MONTHLY || '';
+const STRIPE_PRICE_ANNUAL = process.env.STRIPE_PRICE_ANNUAL || '';
+let stripe;
+if (STRIPE_SECRET_KEY) {
+  stripe = require('stripe')(STRIPE_SECRET_KEY);
+}
+
+// Stripe webhook needs raw body — must be before express.json()
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !STRIPE_WEBHOOK_SECRET) return res.status(400).send('Stripe not configured');
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.log('Webhook signature verification failed:', err.message);
+    return res.status(400).send('Webhook error');
+  }
+
+  console.log('Stripe event:', event.type);
+
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const userId = session.metadata?.user_id;
+      const customerId = session.customer;
+      const subscriptionId = session.subscription;
+      if (userId) {
+        await supabase.from('pages').update({
+          is_paid: true,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          updated_at: new Date().toISOString()
+        }).eq('user_id', userId);
+        console.log('Activated paid for user:', userId);
+      }
+    }
+
+    if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object;
+      const subId = subscription.id;
+      const isActive = ['active', 'trialing'].includes(subscription.status);
+      await supabase.from('pages').update({
+        is_paid: isActive,
+        updated_at: new Date().toISOString()
+      }).eq('stripe_subscription_id', subId);
+      console.log('Subscription', subId, 'status:', subscription.status, '→ is_paid:', isActive);
+    }
+
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      const subId = invoice.subscription;
+      console.log('Payment failed for subscription:', subId);
+      // Don't immediately revoke — Stripe retries. Revocation happens on subscription.deleted.
+    }
+  } catch (e) {
+    console.log('Webhook processing error:', e.message);
+  }
+
+  res.json({ received: true });
+});
+
+// Standard middleware (after webhook route)
 app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 app.use(express.static('public'));
@@ -416,6 +483,94 @@ app.post('/api/waitlist', async (req, res) => {
   } catch (e) {
     console.log('Waitlist error:', e.message);
     res.json({ ok: true }); // Don't expose errors to user
+  }
+});
+
+// ─── Stripe billing routes ──────────────────────────────────────────────────
+
+// Create checkout session
+app.post('/api/checkout', requireAuth, async (req, res) => {
+  if (!stripe) return res.status(400).json({ error: 'Stripe not configured' });
+
+  const { plan } = req.body; // 'monthly' or 'annual'
+  const priceId = plan === 'annual' ? STRIPE_PRICE_ANNUAL : STRIPE_PRICE_MONTHLY;
+  if (!priceId) return res.status(400).json({ error: 'Price not configured' });
+
+  // Get user's page
+  const { data: page } = await req.authClient.from('pages')
+    .select('*').eq('user_id', req.user.id).single();
+  if (!page) return res.status(400).json({ error: 'No page found. Claim a page first.' });
+
+  try {
+    const sessionParams = {
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${req.headers.origin || 'https://stackpub-app-production.up.railway.app'}/dashboard?upgraded=1`,
+      cancel_url: `${req.headers.origin || 'https://stackpub-app-production.up.railway.app'}/dashboard`,
+      metadata: { user_id: req.user.id, slug: page.slug },
+      subscription_data: {
+        metadata: { user_id: req.user.id, slug: page.slug }
+      },
+      payment_intent_data: {
+        statement_descriptor: 'STACK.PUB'
+      }
+    };
+
+    // Reuse existing Stripe customer if they have one
+    if (page.stripe_customer_id) {
+      sessionParams.customer = page.stripe_customer_id;
+    } else {
+      sessionParams.customer_email = req.user.email;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    res.json({ url: session.url });
+  } catch (e) {
+    console.log('Checkout error:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// Get billing status
+app.get('/api/billing', requireAuth, async (req, res) => {
+  const { data: page } = await req.authClient.from('pages')
+    .select('is_paid, stripe_customer_id, stripe_subscription_id').eq('user_id', req.user.id).single();
+  if (!page) return res.json({ isPaid: false });
+
+  let subscription = null;
+  if (stripe && page.stripe_subscription_id) {
+    try {
+      const sub = await stripe.subscriptions.retrieve(page.stripe_subscription_id);
+      subscription = {
+        status: sub.status,
+        currentPeriodEnd: sub.current_period_end,
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
+        plan: sub.items.data[0]?.price?.recurring?.interval === 'year' ? 'annual' : 'monthly',
+        amount: sub.items.data[0]?.price?.unit_amount
+      };
+    } catch (e) {}
+  }
+
+  res.json({ isPaid: page.is_paid || false, subscription });
+});
+
+// Redirect to Stripe customer portal (manage/cancel subscription)
+app.post('/api/billing-portal', requireAuth, async (req, res) => {
+  if (!stripe) return res.status(400).json({ error: 'Stripe not configured' });
+
+  const { data: page } = await req.authClient.from('pages')
+    .select('stripe_customer_id').eq('user_id', req.user.id).single();
+  if (!page?.stripe_customer_id) return res.status(400).json({ error: 'No billing account found' });
+
+  try {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: page.stripe_customer_id,
+      return_url: `${req.headers.origin || 'https://stackpub-app-production.up.railway.app'}/dashboard`
+    });
+    res.json({ url: portalSession.url });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
