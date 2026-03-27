@@ -120,6 +120,49 @@
 
     .error { font-size: 13px; color: #e05252; margin-top: 12px; display: none; text-align: center; }
     .hidden { display: none !important; }
+
+    /* Pro / Upgrade */
+    .pro-badge { display: inline-block; padding: 2px 8px; background: #1a1a1a; color: #fff; font-size: 10px; font-weight: 700; border-radius: 4px; letter-spacing: 0.05em; vertical-align: middle; margin-left: 6px; }
+    .style-option.locked { opacity: 0.7; position: relative; }
+    .style-option.locked::after {
+      content: 'PRO'; position: absolute; top: 8px; right: 8px; z-index: 5;
+      padding: 2px 6px; background: #1a1a1a; color: #fff; font-size: 9px; font-weight: 700;
+      border-radius: 4px; letter-spacing: 0.05em; font-family: 'DM Sans', sans-serif;
+    }
+    .upgrade-card {
+      margin-top: 20px; padding: 24px; background: linear-gradient(135deg, #fafaf8 0%, #f0f0ee 100%);
+      border: 1px solid #e8e8e6; border-radius: 14px; text-align: center;
+    }
+    .upgrade-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .upgrade-card p { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 16px; }
+    .upgrade-card .features { font-size: 13px; color: #666; line-height: 1.8; margin-bottom: 18px; text-align: left; display: inline-block; }
+    .upgrade-card .features span { display: block; }
+    .upgrade-card .features span::before { content: '✓ '; color: #43a047; font-weight: 700; }
+    .plan-toggle { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
+    .plan-btn {
+      padding: 10px 20px; border: 2px solid #e0e0e0; border-radius: 10px; background: #fff;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; color: #1a1a1a;
+    }
+    .plan-btn:hover { border-color: #ccc; }
+    .plan-btn.active { border-color: #1a1a1a; background: #1a1a1a; color: #fff; }
+    .plan-btn .plan-price { font-weight: 700; }
+    .plan-btn .plan-note { font-size: 11px; color: #aaa; display: block; margin-top: 2px; }
+    .plan-btn.active .plan-note { color: rgba(255,255,255,0.6); }
+    .upgrade-btn {
+      display: inline-block; padding: 14px 36px; background: #1a1a1a; color: #fff;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px;
+      border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+    }
+    .upgrade-btn:hover { background: #333; }
+    .upgrade-btn:disabled { opacity: 0.35; cursor: default; }
+    .billing-card {
+      margin-top: 16px; padding: 16px 20px; background: #f0f9f0; border-radius: 10px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .billing-card .billing-status { font-size: 14px; color: #43a047; font-weight: 600; }
+    .billing-card .billing-detail { font-size: 12px; color: #888; }
+    .billing-card .manage-link { font-size: 13px; color: #1a1a1a; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .billing-card .manage-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -196,13 +239,13 @@
       </div>
 
       <div class="style-step">
-        <div class="style-step-label">Image filter <span style="font-weight:400;color:#aaa;font-size:11px;">(optional)</span></div>
+        <div class="style-step-label">Image filter <span class="pro-badge">PRO</span></div>
         <div class="style-step-hint">Change how your photos look. Leave on None for the default.</div>
         <div class="style-grid" id="editFilterGrid"></div>
       </div>
 
       <div class="style-step">
-        <div class="style-step-label">Color overlay <span style="font-weight:400;color:#aaa;font-size:11px;">(optional)</span></div>
+        <div class="style-step-label">Color overlay <span class="pro-badge">PRO</span></div>
         <div class="style-step-hint">Add a color tint that fades on hover to reveal the original photo.</div>
         <div class="style-grid" id="editOverlayGrid"></div>
       </div>
@@ -218,6 +261,38 @@
         <a id="viewAfterSave" href="#" target="_blank">View your page</a>
       </div>
       <div class="error" id="editError"></div>
+
+      <!-- Billing: paid users -->
+      <div class="billing-card hidden" id="billingCard">
+        <div>
+          <div class="billing-status">Pro plan active</div>
+          <div class="billing-detail" id="billingDetail"></div>
+        </div>
+        <a class="manage-link" onclick="openPortal()">Manage subscription</a>
+      </div>
+
+      <!-- Upgrade: free users -->
+      <div class="upgrade-card hidden" id="upgradeCard">
+        <h3>Upgrade to Pro</h3>
+        <p>Remove the stack.pub watermark and unlock premium styles.</p>
+        <div class="features">
+          <span>No watermark on your page</span>
+          <span>Image filters — vintage, pop, noir</span>
+          <span>Color overlays — rose, ocean, gold</span>
+          <span>Future premium features included</span>
+        </div>
+        <div class="plan-toggle">
+          <button class="plan-btn active" id="planMonthly" onclick="selectPlan('monthly')">
+            <span class="plan-price">$5/mo</span>
+          </button>
+          <button class="plan-btn" id="planAnnual" onclick="selectPlan('annual')">
+            <span class="plan-price">$39/yr</span>
+            <span class="plan-note">Save 35%</span>
+          </button>
+        </div>
+        <button class="upgrade-btn" id="upgradeBtn" onclick="startCheckout()">Upgrade now</button>
+      </div>
+
       <div style="margin-top:24px;padding:16px;background:#f8f8f6;border-radius:10px;font-size:12px;color:#999;line-height:1.6;text-align:center;">
         Your page updates automatically every time you publish a new story. Come back anytime to change your style.
       </div>
@@ -235,44 +310,58 @@
     let chosenFilter = 'none';
     let chosenOverlay = 'none';
     let hasLogo = false;
+    let isPaid = false;
+    let selectedPlan = 'monthly';
 
     const DEFAULT_IMG = '/stackpup-sample.jpg';
 
-    function makeOption(id, name, cls, gridId, imgSrc, ovHTML) {
+    function makeOption(id, name, cls, gridId, imgSrc, ovHTML, isProOption) {
       const div = document.createElement('div');
-      div.className = 'style-option ' + cls;
+      const locked = isProOption && !isPaid;
+      div.className = 'style-option ' + cls + (locked ? ' locked' : '');
       div.dataset.id = id;
+      div.dataset.pro = isProOption ? '1' : '0';
       div.innerHTML = '<div class="preview"><img src="' + imgSrc + '" alt="" />' + (ovHTML || '') + '</div><div class="sname">' + name + '</div>';
       div.onclick = () => selectOption(gridId, id);
       document.getElementById(gridId).appendChild(div);
     }
 
     function selectOption(gridId, id) {
-      document.getElementById(gridId).querySelectorAll('.style-option').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+      // Check if this is a locked pro option
+      const grid = document.getElementById(gridId);
+      const option = grid.querySelector('[data-id="' + id + '"]');
+      if (option && option.classList.contains('locked')) {
+        // Scroll to upgrade card
+        document.getElementById('upgradeCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('upgradeCard').style.boxShadow = '0 0 0 3px rgba(26,26,26,0.15)';
+        setTimeout(() => { document.getElementById('upgradeCard').style.boxShadow = ''; }, 1500);
+        return;
+      }
+      grid.querySelectorAll('.style-option').forEach(el => el.classList.toggle('active', el.dataset.id === id));
       if (gridId.includes('Text')) chosenTextStyle = id;
       if (gridId.includes('Filter')) chosenFilter = id;
       if (gridId.includes('Overlay')) chosenOverlay = id;
     }
 
     function buildTextGrid(gridId, active, img) {
-      makeOption('broadsheet', 'Broadsheet', 'ts-broadsheet', gridId, img, '<div class="ov"><span>Your title</span></div>');
-      makeOption('byline', 'Byline', 'ts-byline', gridId, img, '<div class="ov"><span>Your title</span></div>');
-      makeOption('billboard', 'Billboard', 'ts-billboard', gridId, img, '<div class="ov"><span>YOUR TITLE</span></div>');
-      makeOption('handwritten', 'Handwritten', 'ts-handwritten', gridId, img, '<div class="ov"><span>Your title</span></div>');
+      makeOption('broadsheet', 'Broadsheet', 'ts-broadsheet', gridId, img, '<div class="ov"><span>Your title</span></div>', false);
+      makeOption('byline', 'Byline', 'ts-byline', gridId, img, '<div class="ov"><span>Your title</span></div>', false);
+      makeOption('billboard', 'Billboard', 'ts-billboard', gridId, img, '<div class="ov"><span>YOUR TITLE</span></div>', false);
+      makeOption('handwritten', 'Handwritten', 'ts-handwritten', gridId, img, '<div class="ov"><span>Your title</span></div>', false);
       selectOption(gridId, active);
     }
     function buildFilterGrid(gridId, active, img) {
-      makeOption('none', 'None', 'if-none', gridId, img, '');
-      makeOption('vintage', 'Vintage', 'if-vintage', gridId, img, '');
-      makeOption('pop', 'Pop', 'if-pop', gridId, img, '');
-      makeOption('noir', 'Noir', 'if-noir', gridId, img, '');
+      makeOption('none', 'None', 'if-none', gridId, img, '', false);
+      makeOption('vintage', 'Vintage', 'if-vintage', gridId, img, '', true);
+      makeOption('pop', 'Pop', 'if-pop', gridId, img, '', true);
+      makeOption('noir', 'Noir', 'if-noir', gridId, img, '', true);
       selectOption(gridId, active);
     }
     function buildOverlayGrid(gridId, active, img) {
-      makeOption('none', 'None', 'co-none', gridId, img, '');
-      makeOption('rose', 'Rose', 'co-rose', gridId, img, '');
-      makeOption('ocean', 'Ocean', 'co-ocean', gridId, img, '');
-      makeOption('gold', 'Gold', 'co-gold', gridId, img, '');
+      makeOption('none', 'None', 'co-none', gridId, img, '', false);
+      makeOption('rose', 'Rose', 'co-rose', gridId, img, '', true);
+      makeOption('ocean', 'Ocean', 'co-ocean', gridId, img, '', true);
+      makeOption('gold', 'Gold', 'co-gold', gridId, img, '', true);
       selectOption(gridId, active);
     }
 
@@ -389,6 +478,8 @@
     async function showEditFlow() {
       document.getElementById('editCard').classList.remove('hidden');
       const p = currentPage;
+      isPaid = p.is_paid || false;
+
       document.getElementById('editDisplayName').value = p.display_name;
       document.getElementById('editExclude').checked = p.exclude_no_image;
       document.getElementById('pageLink').textContent = 'stack.pub/' + p.slug;
@@ -418,6 +509,87 @@
       buildTextGrid('editTextGrid', chosenTextStyle, img);
       buildFilterGrid('editFilterGrid', chosenFilter, img);
       buildOverlayGrid('editOverlayGrid', chosenOverlay, img);
+
+      // Show upgrade or billing card
+      if (isPaid) {
+        document.getElementById('billingCard').classList.remove('hidden');
+        document.getElementById('upgradeCard').classList.add('hidden');
+        // Remove PRO badges from labels since they have access
+        document.querySelectorAll('.pro-badge').forEach(b => b.style.display = 'none');
+        // Fetch billing details
+        try {
+          const billingRes = await fetch('/api/billing', { headers: { 'Authorization': 'Bearer ' + await getToken() } });
+          const billing = await billingRes.json();
+          if (billing.subscription) {
+            const plan = billing.subscription.plan === 'annual' ? 'Annual' : 'Monthly';
+            const amount = billing.subscription.amount ? '$' + (billing.subscription.amount / 100) : '';
+            document.getElementById('billingDetail').textContent = plan + ' plan' + (amount ? ' — ' + amount : '');
+          }
+        } catch (e) {}
+      } else {
+        document.getElementById('upgradeCard').classList.remove('hidden');
+        document.getElementById('billingCard').classList.add('hidden');
+      }
+
+      // Check for ?upgraded=1 param (just completed checkout)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('upgraded') === '1') {
+        window.history.replaceState({}, '', '/dashboard');
+        // Refresh page data in case webhook already fired
+        const refreshRes = await fetch('/api/my-page', { headers: { 'Authorization': 'Bearer ' + await getToken() } });
+        const refreshData = await refreshRes.json();
+        if (refreshData.page && refreshData.page.is_paid) {
+          currentPage = refreshData.page;
+          isPaid = true;
+          document.getElementById('billingCard').classList.remove('hidden');
+          document.getElementById('upgradeCard').classList.add('hidden');
+          document.querySelectorAll('.pro-badge').forEach(b => b.style.display = 'none');
+          document.querySelectorAll('.style-option.locked').forEach(el => el.classList.remove('locked'));
+        }
+      }
+    }
+
+    // Plan selection
+    function selectPlan(plan) {
+      selectedPlan = plan;
+      document.getElementById('planMonthly').classList.toggle('active', plan === 'monthly');
+      document.getElementById('planAnnual').classList.toggle('active', plan === 'annual');
+    }
+
+    // Start Stripe checkout
+    async function startCheckout() {
+      const btn = document.getElementById('upgradeBtn');
+      btn.disabled = true; btn.textContent = 'Redirecting...';
+      try {
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await getToken() },
+          body: JSON.stringify({ plan: selectedPlan })
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'Could not start checkout');
+        }
+      } catch (e) {
+        alert('Checkout error: ' + e.message);
+        btn.disabled = false; btn.textContent = 'Upgrade now';
+      }
+    }
+
+    // Open Stripe customer portal
+    async function openPortal() {
+      try {
+        const res = await fetch('/api/billing-portal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await getToken() }
+        });
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+      } catch (e) {
+        alert('Could not open billing portal.');
+      }
     }
 
     function toggleLogoUrl() { document.getElementById('logoUrlInput').style.display = 'block'; }
