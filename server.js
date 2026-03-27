@@ -554,7 +554,7 @@ app.get('/api/posts/:slug', async (req, res) => {
 // ─── Public portfolio page (instant shell, posts load client-side) ───────────
 app.get('/:slug', async (req, res) => {
   const slug = req.params.slug.toLowerCase();
-  if (['api', 'login', 'dashboard', 'favicon.ico'].includes(slug)) return res.status(404).end();
+  if (['api', 'login', 'dashboard', 'coming-soon', 'favicon.ico'].includes(slug)) return res.status(404).end();
 
   const { data: page, error } = await supabase.from('pages')
     .select('*').eq('slug', slug).single();
@@ -633,13 +633,14 @@ function getTextStyleCSS(textStyle, fonts) {
     handwritten: `
       .card .overlay {
         display: flex; align-items: center; justify-content: center;
-        text-align: center; padding: 5cqi 10cqi; background: rgba(0,0,0,0.15);
+        text-align: center; padding: 8cqi 10cqi; background: rgba(0,0,0,0.15);
       }
       .card .card-title {
-        font-family: ${fonts.title}; font-weight: 700; font-size: 14cqi;
-        color: #fff; line-height: 1.15; letter-spacing: 0.02em;
+        font-family: ${fonts.title}; font-weight: 700; font-size: 11cqi;
+        color: #fff; line-height: 1.5; letter-spacing: 0.02em;
+        padding: 4cqi 2cqi;
         text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.4);
-        display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
       }`
   };
   return styles[textStyle] || styles.broadsheet;
@@ -737,27 +738,39 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
     footer a { color: #ccc; text-decoration: none; } footer a:hover { color: #999; }
     .sp-float {
       position: fixed; bottom: 16px; right: 16px; z-index: 100;
-      background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
-      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-      font-family: 'DM Sans', sans-serif; transition: all 0.3s ease;
-      cursor: pointer; text-decoration: none; color: #1a1a1a;
+      background: #fff; border-radius: 50px; box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px 8px 10px;
+      font-family: 'DM Sans', sans-serif; cursor: pointer; color: #1a1a1a;
+      transition: box-shadow 0.2s;
     }
     .sp-float:hover { box-shadow: 0 6px 28px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.08); }
     .sp-float-icon { display: flex; flex-shrink: 0; }
-    .sp-float-icon svg { width: 26px; height: 26px; }
-    .sp-float-text { font-size: 13px; font-weight: 600; white-space: nowrap; }
-    .sp-float-expanded { display: none; align-items: center; gap: 8px; }
-    .sp-float-input { padding: 7px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; outline: none; width: 180px; }
-    .sp-float-input:focus { border-color: #1a1a1a; }
-    .sp-float-go { padding: 7px 12px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
-    .sp-float-go:hover { background: #333; }
-    .sp-float.open { cursor: default; }
-    .sp-float.open .sp-float-text { display: none; }
-    .sp-float.open .sp-float-expanded { display: flex; }
+    .sp-float-icon svg { width: 20px; height: 20px; }
+    .sp-float-text { font-size: 12px; font-weight: 600; white-space: nowrap; }
     @media (max-width: 480px) {
-      .sp-float { bottom: 12px; right: 12px; left: 12px; justify-content: center; }
-      .sp-float-input { width: 140px; }
+      .sp-float { bottom: 12px; right: 12px; padding: 7px 12px 7px 8px; gap: 6px; }
+      .sp-float-icon svg { width: 18px; height: 18px; }
+      .sp-float-text { font-size: 11px; }
     }
+    .sp-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.45); align-items: center; justify-content: center;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .sp-overlay.open { display: flex; }
+    .sp-modal {
+      background: #fff; border-radius: 16px; padding: 36px; max-width: 440px; width: calc(100% - 48px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2); text-align: center;
+    }
+    .sp-modal-icon { margin-bottom: 16px; }
+    .sp-modal-icon svg { width: 40px; height: 40px; }
+    .sp-modal h2 { font-family: 'DM Sans', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .sp-modal p { font-size: 14px; color: #888; line-height: 1.5; margin-bottom: 20px; }
+    .sp-modal-input { width: 100%; padding: 14px 16px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 12px; text-align: center; }
+    .sp-modal-input:focus { border-color: #1a1a1a; }
+    .sp-modal-go { width: 100%; padding: 14px; background: #1a1a1a; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+    .sp-modal-go:hover { background: #333; }
+    .sp-modal-hint { font-size: 12px; color: #bbb; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -775,27 +788,39 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
     Powered by <a href="/">stack.pub</a> &middot; <span id="postCount">0</span> stories
   </footer>
   ${!isPaid ? `
-  <div class="sp-float" id="spFloat" onclick="openFloat(event)">
+  <div class="sp-float" onclick="document.getElementById('spOverlay').classList.add('open')">
     <div class="sp-float-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
-    <span class="sp-float-text">Create yours free</span>
-    <div class="sp-float-expanded">
-      <input class="sp-float-input" id="spInput" type="text" placeholder="yourname.substack.com" onclick="event.stopPropagation()" />
-      <button class="sp-float-go" onclick="event.stopPropagation(); goCreate()">Go</button>
+    <span class="sp-float-text">Create yours for free</span>
+  </div>
+  <div class="sp-overlay" id="spOverlay" onclick="closeModal(event)">
+    <div class="sp-modal">
+      <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
+      <h2>Create your visual portfolio</h2>
+      <p>Turn your Substack newsletter into a shareable photo grid like this one. Enter your publication URL below to get started.</p>
+      <input class="sp-modal-input" id="spInput" type="text" placeholder="yourname.substack.com" />
+      <button class="sp-modal-go" onclick="goCreate()">Get started</button>
+      <p class="sp-modal-hint">Works with yourname.substack.com and custom domains.<br/>Free to start. Paid styles available.</p>
     </div>
   </div>
   ` : ''}
   <script>
-    function openFloat(e) {
-      const f = document.getElementById('spFloat');
-      if (!f.classList.contains('open')) { f.classList.add('open'); document.getElementById('spInput').focus(); }
+    function closeModal(e) {
+      if (e.target === document.getElementById('spOverlay')) {
+        document.getElementById('spOverlay').classList.remove('open');
+        document.getElementById('spInput').value = '';
+      }
     }
     function goCreate() {
       const v = document.getElementById('spInput').value.trim().toLowerCase();
       if (!v) return;
-      if (v.includes('substack.com') || (!v.includes('.') && v.length > 1)) {
-        window.open('https://stack.pub/login', '_blank');
+      // Substack handles, substack.com URLs, and anything that could be a custom domain — all go to login
+      // Only clearly non-newsletter domains (e.g. medium.com, beehiiv.com, ghost.io) go to coming-soon
+      const nonSubstack = ['medium.com', 'beehiiv.com', 'ghost.io', 'ghost.org', 'buttondown.email', 'convertkit.com', 'mailchimp.com', 'revue.co'];
+      const isNonSubstack = nonSubstack.some(d => v.includes(d));
+      if (isNonSubstack) {
+        window.location.href = '/coming-soon?domain=' + encodeURIComponent(v);
       } else {
-        window.open('https://stack.pub/coming-soon?domain=' + encodeURIComponent(v), '_blank');
+        window.location.href = '/login';
       }
     }
     const slug = '${esc(slug)}';
