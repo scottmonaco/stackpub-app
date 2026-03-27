@@ -282,8 +282,8 @@ app.post('/api/claim', requireAuth, async (req, res) => {
   }
 
   const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  if (cleanSlug.length < 2 || cleanSlug.length > 40) {
-    return res.status(400).json({ error: 'Slug must be 2-40 characters' });
+  if (cleanSlug.length < 3 || cleanSlug.length > 40) {
+    return res.status(400).json({ error: 'Slug must be 3-40 characters' });
   }
 
   // Check if user already has a page
@@ -397,6 +397,24 @@ app.post('/api/upload-logo', requireAuth, async (req, res) => {
     .eq('user_id', req.user.id);
 
   res.json({ ok: true, logoUrl });
+});
+
+// Waitlist for non-Substack platforms
+app.post('/api/waitlist', async (req, res) => {
+  const { email, domain } = req.body;
+  if (!email || !domain) return res.status(400).json({ error: 'Email and domain required' });
+  try {
+    const { error } = await supabase.from('waitlist').insert({ email, domain });
+    if (error) {
+      // Duplicate email+domain is fine, just ignore
+      if (error.code === '23505') return res.json({ ok: true });
+      throw error;
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.log('Waitlist error:', e.message);
+    res.json({ ok: true }); // Don't expose errors to user
+  }
 });
 
 // Debug endpoint — test feed fetching
@@ -768,9 +786,23 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
     .sp-modal p { font-size: 14px; color: #888; line-height: 1.5; margin-bottom: 20px; }
     .sp-modal-input { width: 100%; padding: 14px 16px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 12px; text-align: center; }
     .sp-modal-input:focus { border-color: #1a1a1a; }
-    .sp-modal-go { width: 100%; padding: 14px; background: #1a1a1a; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+    .sp-modal-input.left { text-align: left; }
+    .sp-modal-go { width: 100%; padding: 14px; background: #1a1a1a; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background 0.2s; }
     .sp-modal-go:hover { background: #333; }
+    .sp-modal-go:disabled { opacity: 0.35; cursor: default; }
     .sp-modal-hint { font-size: 12px; color: #bbb; margin-top: 12px; }
+    .sp-modal-error { font-size: 13px; color: #e05252; margin-top: 10px; display: none; }
+    .sp-modal-back { font-size: 13px; color: #aaa; cursor: pointer; margin-top: 14px; display: inline-block; text-decoration: none; }
+    .sp-modal-back:hover { color: #666; }
+    .sp-otp-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
+    .sp-otp-row input {
+      width: 44px; height: 52px; text-align: center; font-size: 22px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif; border: 1px solid #e0e0e0; border-radius: 10px;
+      outline: none; background: #fafafa; transition: border-color 0.2s;
+    }
+    .sp-otp-row input:focus { border-color: #1a1a1a; background: #fff; }
+    .sp-step { display: none; }
+    .sp-step.active { display: block; }
   </style>
 </head>
 <body>
@@ -788,41 +820,279 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
     Powered by <a href="/">stack.pub</a> &middot; <span id="postCount">0</span> stories
   </footer>
   ${!isPaid ? `
-  <div class="sp-float" onclick="document.getElementById('spOverlay').classList.add('open')">
+  <div class="sp-float" onclick="openModal()">
     <div class="sp-float-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
     <span class="sp-float-text">Create yours for free</span>
   </div>
   <div class="sp-overlay" id="spOverlay" onclick="closeModal(event)">
     <div class="sp-modal">
-      <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
-      <h2>Create your visual portfolio</h2>
-      <p>Turn your Substack newsletter into a shareable photo grid like this one. Enter your publication URL below to get started.</p>
-      <input class="sp-modal-input" id="spInput" type="text" placeholder="yourname.substack.com" />
-      <button class="sp-modal-go" onclick="goCreate()">Get started</button>
-      <p class="sp-modal-hint">Works with yourname.substack.com and custom domains.<br/>Free to start. Paid styles available.</p>
+
+      <!-- Step 1: Newsletter URL -->
+      <div class="sp-step active" id="spStep1">
+        <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
+        <h2>Create your visual portfolio</h2>
+        <p>Turn your Substack newsletter into a shareable photo grid like this one.</p>
+        <input class="sp-modal-input left" id="spPubUrl" type="text" placeholder="yourname.substack.com" />
+        <button class="sp-modal-go" onclick="spContinueUrl()">Continue</button>
+        <p class="sp-modal-hint">Works with Substack URLs and custom domains.</p>
+        <p class="sp-modal-error" id="spError1"></p>
+      </div>
+
+      <!-- Step 2: Email (Substack path) -->
+      <div class="sp-step" id="spStep2">
+        <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
+        <h2>Enter your email</h2>
+        <p>We'll send you a 6-digit code to sign in. No password needed.</p>
+        <input class="sp-modal-input" id="spEmail" type="email" placeholder="you@example.com" />
+        <button class="sp-modal-go" onclick="spSendCode()">Get started</button>
+        <p class="sp-modal-hint">Create your page for free.</p>
+        <p class="sp-modal-error" id="spError2"></p>
+        <a class="sp-modal-back" onclick="spGoStep(1)">&larr; Back</a>
+      </div>
+
+      <!-- Step 3: OTP Code -->
+      <div class="sp-step" id="spStep3">
+        <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
+        <h2>Check your email</h2>
+        <p>Enter the 6-digit code we sent to <strong id="spEmailDisplay"></strong></p>
+        <div class="sp-otp-row" id="spOtpRow">
+          <input type="text" maxlength="1" inputmode="numeric" autocomplete="one-time-code" />
+          <input type="text" maxlength="1" inputmode="numeric" />
+          <input type="text" maxlength="1" inputmode="numeric" />
+          <input type="text" maxlength="1" inputmode="numeric" />
+          <input type="text" maxlength="1" inputmode="numeric" />
+          <input type="text" maxlength="1" inputmode="numeric" />
+        </div>
+        <button class="sp-modal-go" id="spVerifyBtn" onclick="spVerifyCode()" disabled>Verify</button>
+        <p class="sp-modal-error" id="spError3"></p>
+        <a class="sp-modal-back" onclick="spResendCode()">Didn't get it? Resend code</a>
+      </div>
+
+      <!-- Step W: Waitlist (non-Substack path) -->
+      <div class="sp-step" id="spStepW">
+        <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
+        <h2>We're on it</h2>
+        <p>stack.pub currently supports Substack newsletters. Support for <strong id="spWaitPlatform"></strong> is on the way.</p>
+        <input class="sp-modal-input" id="spWaitEmail" type="email" placeholder="you@example.com" />
+        <button class="sp-modal-go" onclick="spJoinWaitlist()">Notify me when it's ready</button>
+        <p class="sp-modal-error" id="spErrorW"></p>
+      </div>
+
+      <!-- Step WD: Waitlist done -->
+      <div class="sp-step" id="spStepWD">
+        <div class="sp-modal-icon"><svg viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="28" height="34" rx="3" fill="#1a1a1a"/><rect x="33" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="0" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="0" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="33" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/><rect x="66" y="39" width="28" height="34" rx="3" fill="#1a1a1a" fill-opacity="0.15"/></svg></div>
+        <h2>You're on the list</h2>
+        <p>We'll email you as soon as your platform is supported. Thanks for your interest!</p>
+      </div>
+
     </div>
   </div>
   ` : ''}
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
+    const SUPABASE_URL = '${SUPABASE_URL}';
+    const SUPABASE_KEY = '${SUPABASE_ANON_KEY}';
+    const spSb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let spPubUrlValue = '';
+    let spEmailValue = '';
+
+    // Non-Substack platform detection
+    const nonSubstackPlatforms = {
+      'medium.com': 'Medium', 'beehiiv.com': 'Beehiiv', 'ghost.io': 'Ghost',
+      'ghost.org': 'Ghost', 'buttondown.email': 'Buttondown', 'convertkit.com': 'ConvertKit',
+      'mailchimp.com': 'Mailchimp', 'revue.co': 'Revue', 'wordpress.com': 'WordPress',
+      'tinyletter.com': 'TinyLetter', 'getrevue.co': 'Revue', 'hubspot.com': 'HubSpot'
+    };
+
+    function openModal() {
+      // If already logged in, go straight to dashboard
+      spSb.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          window.location.href = '/dashboard';
+        } else {
+          resetModal();
+          document.getElementById('spOverlay').classList.add('open');
+        }
+      });
+    }
+
     function closeModal(e) {
       if (e.target === document.getElementById('spOverlay')) {
         document.getElementById('spOverlay').classList.remove('open');
-        document.getElementById('spInput').value = '';
+        setTimeout(resetModal, 300);
       }
     }
-    function goCreate() {
-      const v = document.getElementById('spInput').value.trim().toLowerCase();
-      if (!v) return;
-      // Substack handles, substack.com URLs, and anything that could be a custom domain — all go to login
-      // Only clearly non-newsletter domains (e.g. medium.com, beehiiv.com, ghost.io) go to coming-soon
-      const nonSubstack = ['medium.com', 'beehiiv.com', 'ghost.io', 'ghost.org', 'buttondown.email', 'convertkit.com', 'mailchimp.com', 'revue.co'];
-      const isNonSubstack = nonSubstack.some(d => v.includes(d));
-      if (isNonSubstack) {
-        window.location.href = '/coming-soon?domain=' + encodeURIComponent(v);
-      } else {
-        window.location.href = '/login';
+
+    function resetModal() {
+      document.querySelectorAll('.sp-step').forEach(s => s.classList.remove('active'));
+      document.getElementById('spStep1').classList.add('active');
+      document.getElementById('spPubUrl').value = '';
+      document.getElementById('spEmail').value = '';
+      document.getElementById('spWaitEmail').value = '';
+      document.querySelectorAll('.sp-otp-row input').forEach(i => i.value = '');
+      document.querySelectorAll('.sp-modal-error').forEach(e => { e.style.display = 'none'; e.textContent = ''; });
+      document.querySelectorAll('.sp-modal-go').forEach(b => { b.disabled = false; b.textContent = b.dataset.label || b.textContent; });
+    }
+
+    function spGoStep(n) {
+      document.querySelectorAll('.sp-step').forEach(s => s.classList.remove('active'));
+      const stepId = typeof n === 'string' ? n : 'spStep' + n;
+      document.getElementById(stepId).classList.add('active');
+    }
+
+    function spShowError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg; el.style.display = 'block';
+    }
+
+    // Step 1: Check URL
+    function spContinueUrl() {
+      const raw = document.getElementById('spPubUrl').value.trim();
+      if (!raw) return spShowError('spError1', 'Please enter your newsletter URL.');
+      const v = raw.toLowerCase();
+
+      // Check for non-Substack platforms
+      for (const [domain, name] of Object.entries(nonSubstackPlatforms)) {
+        if (v.includes(domain)) {
+          spPubUrlValue = raw;
+          document.getElementById('spWaitPlatform').textContent = name;
+          spGoStep('spStepW');
+          return;
+        }
+      }
+
+      spPubUrlValue = raw;
+      document.getElementById('spError1').style.display = 'none';
+      spGoStep(2);
+      setTimeout(() => document.getElementById('spEmail').focus(), 100);
+    }
+
+    // Step 2: Send OTP
+    async function spSendCode() {
+      const email = document.getElementById('spEmail').value.trim();
+      if (!email || !email.includes('@')) return spShowError('spError2', 'Please enter a valid email.');
+
+      const btn = document.querySelector('#spStep2 .sp-modal-go');
+      btn.disabled = true; btn.textContent = 'Sending code...';
+      document.getElementById('spError2').style.display = 'none';
+
+      try {
+        const { error } = await spSb.auth.signInWithOtp({
+          email,
+          options: { shouldCreateUser: true }
+        });
+        if (error) throw error;
+
+        spEmailValue = email;
+        document.getElementById('spEmailDisplay').textContent = email;
+        spGoStep(3);
+
+        // Focus first OTP input
+        const firstInput = document.querySelector('#spOtpRow input');
+        if (firstInput) setTimeout(() => firstInput.focus(), 100);
+      } catch (e) {
+        spShowError('spError2', e.message || 'Could not send code. Please try again.');
+        btn.disabled = false; btn.textContent = 'Get started';
       }
     }
+
+    // Step 3: OTP input behavior
+    (function setupOtp() {
+      const row = document.getElementById('spOtpRow');
+      if (!row) return;
+      const inputs = row.querySelectorAll('input');
+
+      inputs.forEach((inp, i) => {
+        inp.addEventListener('input', (e) => {
+          const val = e.target.value.replace(/[^0-9]/g, '');
+          e.target.value = val.slice(0, 1);
+          if (val && i < inputs.length - 1) inputs[i + 1].focus();
+          checkOtpComplete();
+        });
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace' && !e.target.value && i > 0) {
+            inputs[i - 1].focus();
+            inputs[i - 1].value = '';
+          }
+        });
+        inp.addEventListener('paste', (e) => {
+          e.preventDefault();
+          const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+          paste.split('').forEach((ch, j) => { if (inputs[j]) inputs[j].value = ch; });
+          if (paste.length > 0) inputs[Math.min(paste.length, inputs.length) - 1].focus();
+          checkOtpComplete();
+        });
+      });
+
+      function checkOtpComplete() {
+        const code = Array.from(inputs).map(i => i.value).join('');
+        document.getElementById('spVerifyBtn').disabled = code.length !== 6;
+      }
+    })();
+
+    // Step 3: Verify OTP
+    async function spVerifyCode() {
+      const inputs = document.querySelectorAll('#spOtpRow input');
+      const code = Array.from(inputs).map(i => i.value).join('');
+      if (code.length !== 6) return;
+
+      const btn = document.getElementById('spVerifyBtn');
+      btn.disabled = true; btn.textContent = 'Verifying...';
+      document.getElementById('spError3').style.display = 'none';
+
+      try {
+        const { data, error } = await spSb.auth.verifyOtp({
+          email: spEmailValue,
+          token: code,
+          type: 'email'
+        });
+        if (error) throw error;
+
+        // Success — redirect to dashboard with pub URL
+        window.location.href = '/dashboard?pub=' + encodeURIComponent(spPubUrlValue);
+      } catch (e) {
+        spShowError('spError3', 'Invalid code. Please try again.');
+        btn.disabled = false; btn.textContent = 'Verify';
+        inputs.forEach(i => i.value = '');
+        inputs[0].focus();
+      }
+    }
+
+    // Resend code
+    async function spResendCode() {
+      if (!spEmailValue) return;
+      try {
+        await spSb.auth.signInWithOtp({ email: spEmailValue, options: { shouldCreateUser: true } });
+        const el = document.querySelector('#spStep3 .sp-modal-back');
+        const orig = el.textContent;
+        el.textContent = 'Code resent!';
+        setTimeout(() => { el.textContent = orig; }, 3000);
+      } catch (e) {}
+    }
+
+    // Waitlist
+    async function spJoinWaitlist() {
+      const email = document.getElementById('spWaitEmail').value.trim();
+      if (!email || !email.includes('@')) return spShowError('spErrorW', 'Please enter a valid email.');
+
+      const btn = document.querySelector('#spStepW .sp-modal-go');
+      btn.disabled = true; btn.textContent = 'Saving...';
+
+      try {
+        await fetch('/api/waitlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, domain: spPubUrlValue })
+        });
+        spGoStep('spStepWD');
+      } catch (e) {
+        spShowError('spErrorW', 'Something went wrong. Please try again.');
+        btn.disabled = false; btn.textContent = 'Notify me when it\\'s ready';
+      }
+    }
+
+    // Portfolio page logic
     const slug = '${esc(slug)}';
     async function loadPosts() {
       try {
