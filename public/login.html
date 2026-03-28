@@ -39,6 +39,25 @@
     .email-form button:hover { background: #333; }
     .email-note { font-size: 12px; color: #bbb; margin-top: 4px; }
 
+    .otp-wrap { display: none; }
+    .otp-boxes { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
+    .otp-boxes input {
+      width: 46px; height: 54px; text-align: center; font-size: 22px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif; border: 1px solid #e0e0e0; border-radius: 10px;
+      outline: none; background: #fafafa; color: #1a1a1a; transition: border-color 0.2s;
+    }
+    .otp-boxes input:focus { border-color: #1a1a1a; background: #fff; }
+    .otp-verify {
+      padding: 13px; width: 100%; background: #1a1a1a; color: #fff;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px;
+      border: none; border-radius: 10px; cursor: pointer; transition: background 0.2s;
+    }
+    .otp-verify:hover { background: #333; }
+    .otp-verify:disabled { background: #ccc; cursor: default; }
+    .resend-link { font-size: 13px; color: #aaa; margin-top: 12px; }
+    .resend-link a { color: #888; text-decoration: underline; cursor: pointer; }
+    .resend-link a:hover { color: #555; }
+
     .error { font-size: 13px; color: #e05252; margin-top: 12px; display: none; }
     .footer { margin-top: 32px; font-size: 12px; color: #ccc; }
   </style>
@@ -50,15 +69,34 @@
   </div>
 
   <div class="card">
-    <h1>Sign in or create an account</h1>
-    <p>Enter your email and we'll send you a link to sign in. No password needed.</p>
+    <div class="email-step">
+      <h1>Sign in or create an account</h1>
+      <p>Enter your email and we'll send you a code to sign in. No password needed.</p>
 
-    <div class="email-form">
-      <input type="email" id="email" placeholder="you@example.com" />
-      <button onclick="signInWithEmail()">Continue with email</button>
+      <div class="email-form">
+        <input type="email" id="email" placeholder="you@example.com" />
+        <button onclick="signInWithEmail()">Continue with email</button>
+      </div>
+
+      <div class="error" id="error"></div>
     </div>
 
-    <div class="error" id="error"></div>
+    <div class="otp-wrap">
+      <h1>Enter your code</h1>
+      <p>We sent a 6-digit code to <strong id="otp-email"></strong></p>
+
+      <div class="otp-boxes">
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+        <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+      </div>
+      <button class="otp-verify" onclick="verifyOtp()" disabled>Verify</button>
+      <div class="resend-link">Didn't get it? <a onclick="resendCode()">Send again</a></div>
+      <div class="error" id="otp-error"></div>
+    </div>
   </div>
 
   <div class="footer">stack.pub</div>
@@ -69,28 +107,80 @@
     const SUPABASE_KEY = 'sb_publishable_iRpJb4YxWsFTFgVt_drNaA_7AIuZ1cQ';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let userEmail = '';
+
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session) window.location.href = '/dashboard';
     });
 
     async function signInWithEmail() {
       const email = document.getElementById('email').value.trim();
-      if (!email) return showError('Please enter your email.');
+      if (!email) return showError('error', 'Please enter your email.');
       const btn = document.querySelector('.email-form button');
       btn.disabled = true; btn.textContent = 'Sending...';
       const { error } = await sb.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.origin + '/dashboard' }
       });
-      if (error) { showError(error.message); btn.disabled = false; btn.textContent = 'Continue with email'; return; }
-      document.querySelector('.card').innerHTML = `
-        <h1 style="font-family:'Lora',serif;font-size:24px;margin-bottom:8px;">Check your email</h1>
-        <p style="font-size:15px;color:#888;line-height:1.5;">We sent a sign-in link to <strong>${email}</strong>. Click it to continue.</p>
-      `;
+      if (error) { showError('error', error.message); btn.disabled = false; btn.textContent = 'Continue with email'; return; }
+      userEmail = email;
+      document.getElementById('otp-email').textContent = email;
+      document.querySelector('.email-step').style.display = 'none';
+      document.querySelector('.otp-wrap').style.display = 'block';
+      document.querySelector('.otp-boxes input').focus();
     }
 
-    function showError(msg) {
-      const el = document.getElementById('error');
+    // OTP input handling
+    const otpInputs = document.querySelectorAll('.otp-boxes input');
+    const verifyBtn = document.querySelector('.otp-verify');
+
+    otpInputs.forEach((inp, i) => {
+      inp.addEventListener('input', () => {
+        inp.value = inp.value.replace(/[^0-9]/g, '');
+        if (inp.value && i < otpInputs.length - 1) otpInputs[i + 1].focus();
+        checkOtpComplete();
+      });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !inp.value && i > 0) { otpInputs[i - 1].focus(); }
+        if (e.key === 'Enter' && getOtp().length === 6) verifyOtp();
+      });
+      inp.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const paste = (e.clipboardData.getData('text') || '').replace(/[^0-9]/g, '').slice(0, 6);
+        paste.split('').forEach((ch, j) => { if (otpInputs[j]) otpInputs[j].value = ch; });
+        if (paste.length === 6) { otpInputs[5].focus(); checkOtpComplete(); }
+      });
+    });
+
+    function getOtp() { return Array.from(otpInputs).map(i => i.value).join(''); }
+    function checkOtpComplete() { verifyBtn.disabled = getOtp().length !== 6; }
+
+    async function verifyOtp() {
+      const token = getOtp();
+      if (token.length !== 6) return;
+      verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...';
+      const { error } = await sb.auth.verifyOtp({ email: userEmail, token, type: 'email' });
+      if (error) {
+        showError('otp-error', 'Invalid code. Please try again.');
+        verifyBtn.disabled = false; verifyBtn.textContent = 'Verify';
+        otpInputs.forEach(i => i.value = '');
+        otpInputs[0].focus();
+        return;
+      }
+      window.location.href = '/dashboard';
+    }
+
+    async function resendCode() {
+      const { error } = await sb.auth.signInWithOtp({
+        email: userEmail,
+        options: { emailRedirectTo: window.location.origin + '/dashboard' }
+      });
+      if (error) return showError('otp-error', error.message);
+      document.querySelector('.resend-link').innerHTML = 'New code sent ✓';
+    }
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
       el.textContent = msg;
       el.style.display = 'block';
     }
