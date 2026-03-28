@@ -52,10 +52,16 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
       const subscription = event.data.object;
       const subId = subscription.id;
       const isActive = ['active', 'trialing'].includes(subscription.status);
-      await supabase.from('pages').update({
+      const updateData = {
         is_paid: isActive,
         updated_at: new Date().toISOString()
-      }).eq('stripe_subscription_id', subId);
+      };
+      // If subscription is no longer active, revert PRO-only styles to free defaults
+      if (!isActive) {
+        updateData.image_filter = 'none';
+        updateData.color_overlay = 'none';
+      }
+      await supabase.from('pages').update(updateData).eq('stripe_subscription_id', subId);
       console.log('Subscription', subId, 'status:', subscription.status, '→ is_paid:', isActive);
     }
 
@@ -787,10 +793,10 @@ function getTextStyleCSS(textStyle, fonts) {
         background: linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.35) 25%, rgba(0,0,0,0.12) 50%, transparent 100%);
       }
       .card .card-title {
-        font-family: ${fonts.title}; font-weight: 400; font-size: 12cqi;
-        font-style: italic; color: #fff; line-height: 1.1;
+        font-family: ${fonts.title}; font-weight: 400; font-size: 9.5cqi;
+        font-style: italic; color: #fff; line-height: 1.15;
         text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5), 0 0 24px rgba(0,0,0,0.3);
-        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
       }`,
     billboard: `
       .card .overlay {
@@ -921,9 +927,9 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
     .sp-float-icon svg { width: 20px; height: 20px; }
     .sp-float-text { font-size: 12px; font-weight: 600; white-space: nowrap; }
     @media (max-width: 480px) {
-      .sp-float { bottom: 12px; right: 12px; padding: 7px 12px 7px 8px; gap: 6px; }
-      .sp-float-icon svg { width: 18px; height: 18px; }
-      .sp-float-text { font-size: 11px; }
+      .sp-float { bottom: 14px; left: 50%; right: auto; transform: translateX(-50%); padding: 10px 18px 10px 14px; gap: 8px; }
+      .sp-float-icon svg { width: 22px; height: 22px; }
+      .sp-float-text { font-size: 13px; }
     }
     .sp-overlay {
       display: none; position: fixed; inset: 0; z-index: 200;
