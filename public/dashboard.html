@@ -123,7 +123,7 @@
 
     /* Pro / Upgrade */
     .pro-badge { display: inline-block; padding: 2px 8px; background: #1a1a1a; color: #fff; font-size: 10px; font-weight: 700; border-radius: 4px; letter-spacing: 0.05em; vertical-align: middle; margin-left: 6px; }
-    .style-option.locked { opacity: 0.7; position: relative; }
+    .style-option.locked { position: relative; }
     .style-option.locked::after {
       content: 'PRO'; position: absolute; top: 8px; right: 8px; z-index: 5;
       padding: 2px 6px; background: #1a1a1a; color: #fff; font-size: 9px; font-weight: 700;
@@ -408,8 +408,9 @@
         document.getElementById('slugInput').value = m[1];
         checkSlug();
       }
-      // Auto-fetch publication name
-      if (!document.getElementById('displayName').value) {
+      // Auto-fetch publication name (only for substack.com URLs, not custom domains)
+      const isSubstackUrl = clean.match(/^[a-z0-9_-]+\.substack\.com/);
+      if (!document.getElementById('displayName').value && isSubstackUrl) {
         try {
           const res = await fetch('/api/preview', {
             method: 'POST',
