@@ -38,7 +38,7 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
       const customerId = session.customer;
       const subscriptionId = session.subscription;
       if (userId) {
-        await supabase.from('pages').update({
+        await supabaseAdmin.from('pages').update({
           is_paid: true,
           stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
@@ -61,7 +61,7 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
         updateData.image_filter = 'none';
         updateData.color_overlay = 'none';
       }
-      await supabase.from('pages').update(updateData).eq('stripe_subscription_id', subId);
+      await supabaseAdmin.from('pages').update(updateData).eq('stripe_subscription_id', subId);
       console.log('Subscription', subId, 'status:', subscription.status, '→ is_paid:', isActive);
     }
 
@@ -86,9 +86,15 @@ app.use(express.static('public'));
 // ─── Supabase setup ──────────────────────────────────────────────────────────
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://asuhkamvyfvtxeqyqdei.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_iRpJb4YxWsFTFgVt_drNaA_7AIuZ1cQ';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 // Server-side client (for public reads)
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Service role client (bypasses RLS — for webhooks and server-side writes)
+const supabaseAdmin = SUPABASE_SERVICE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  : supabase;
 
 // Create an authenticated client from a user's token
 function getAuthClient(token) {
