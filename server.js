@@ -588,6 +588,9 @@ app.post('/api/billing-portal', requireAuth, async (req, res) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public/login.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public/dashboard.html')));
+app.get('/terms', (req, res) => res.sendFile(path.join(__dirname, 'public/terms.html')));
+app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'public/privacy.html')));
+app.get('/contact', (req, res) => res.sendFile(path.join(__dirname, 'public/contact.html')));
 app.get('/coming-soon', (req, res) => {
   const domain = req.query.domain || '';
   res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Coming Soon — stack.pub</title>
@@ -665,7 +668,7 @@ app.get('/api/posts/:slug', async (req, res) => {
 // ─── Public portfolio page (instant shell, posts load client-side) ───────────
 app.get('/:slug', async (req, res) => {
   const slug = req.params.slug.toLowerCase();
-  if (['api', 'login', 'dashboard', 'coming-soon', 'favicon.ico'].includes(slug)) return res.status(404).end();
+  if (['api', 'login', 'dashboard', 'coming-soon', 'terms', 'privacy', 'contact', 'favicon.ico'].includes(slug)) return res.status(404).end();
 
   const { data: page, error } = await supabase.from('pages')
     .select('*').eq('slug', slug).single();
