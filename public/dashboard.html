@@ -66,7 +66,7 @@
       box-shadow: 0 8px 32px rgba(0,0,0,0.12);
     }
     .live-preview img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.7) saturate(0.9); transition: filter 0.4s ease; }
-    .live-preview .ov { position: absolute; inset: 0; pointer-events: none; transition: all 0.4s ease; }
+    .live-preview .ov { position: absolute; inset: 0; pointer-events: none; transition: all 0.4s ease; z-index: 3; }
     .live-preview .ov span { transition: all 0.4s ease; }
     .live-preview .color-ov { position:absolute; inset:0; pointer-events:none; transition: background 0.4s ease; z-index:2; }
     .live-preview .vignette-ov { position:absolute; inset:0; pointer-events:none; transition: opacity 0.4s ease; z-index:1; }
@@ -118,15 +118,16 @@
     .strip-label { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
     .thumb-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
     .thumb-strip::-webkit-scrollbar { display: none; }
+    .thumb-strip-wrap { flex-wrap: wrap; overflow-x: visible; }
     .thumb-item { flex: 0 0 auto; cursor: pointer; border: 2px solid #eee; border-radius: 8px; transition: all 0.2s; position: relative; }
     .thumb-item:hover { border-color: #ccc; }
     .thumb-item.active { border-color: #1a1a1a; box-shadow: 0 0 0 2px rgba(26,26,26,0.1); }
     .thumb-item.pro::after { content:'PRO'; position:absolute; top:3px; right:3px; padding:1px 4px; background:#1a1a1a; color:#fff; font-size:7px; font-weight:700; border-radius:3px; letter-spacing:0.04em; font-family:'DM Sans',sans-serif; z-index:2; }
     .text-thumb { padding: 10px 14px; min-width: 72px; text-align: center; background: #fff; }
     .text-thumb .tname { font-size: 14px; line-height: 1.2; white-space: nowrap; }
-    .img-thumb { width: 64px; height: 85px; overflow: hidden; position: relative; background: #1a1a1a; }
+    .img-thumb { width: 96px; height: 128px; overflow: hidden; position: relative; background: #1a1a1a; }
     .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .img-thumb .tlabel { position:absolute; bottom:0; left:0; right:0; background:rgba(255,255,255,0.92); font-size:8px; text-align:center; padding:3px 2px; font-weight:600; color:#333; }
+    .img-thumb .tlabel { position:absolute; bottom:0; left:0; right:0; background:rgba(255,255,255,0.92); font-size:9px; text-align:center; padding:4px 2px; font-weight:600; color:#333; }
 
     /* Header preview */
     .header-preview { border: 1px solid #eee; border-radius: 10px; padding: 20px 16px; text-align: center; margin-bottom: 16px; transition: background 0.3s ease; }
@@ -144,7 +145,20 @@
     .style-control { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .style-control > label { font-size: 12px; font-weight: 600; color: #888; min-width: 80px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
 
-    .checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 24px; cursor: pointer; user-select: none; }
+    /* Post management */
+    .post-manage-toggle { font-size: 13px; color: #888; cursor: pointer; text-decoration: underline; margin-bottom: 12px; display: inline-block; }
+    .post-manage-toggle:hover { color: #555; }
+    .post-list { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 10px; margin-bottom: 16px; }
+    .post-list-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #f5f5f5; }
+    .post-list-item:last-child { border-bottom: none; }
+    .post-list-item.is-hidden { opacity: 0.4; }
+    .post-list-item .pli-img { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #eee; flex-shrink: 0; }
+    .post-list-item .pli-title { flex: 1; font-size: 13px; color: #333; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .post-list-item .pli-btn { width: 28px; height: 28px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; background: #f5f5f5; color: #aaa; flex-shrink: 0; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+    .post-list-item .pli-btn:hover { background: #eee; color: #666; }
+    .post-list-item .pli-btn.active { background: #1a1a1a; color: #fff; }
+
+    .checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; cursor: pointer; user-select: none; }
     .checkbox-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #1a1a1a; cursor: pointer; }
     .checkbox-row span { font-size: 13px; color: #666; line-height: 1.5; }
 
@@ -284,35 +298,11 @@
         </div>
       </div>
       <div class="editor-section">
-        <div class="editor-label">Design your card</div>
-        <div class="live-preview-wrap">
-          <div class="live-preview ts-broadsheet if-none co-none" id="livePreview">
-            <img id="previewImg" src="/stackpup-sample.jpg" alt="" />
-            <div class="vignette-ov"></div>
-            <div class="color-ov"></div>
-            <div class="ov"><span id="previewTitle">Your title here</span></div>
-          </div>
-        </div>
-        <div class="strip-section">
-          <div class="strip-label">Text style</div>
-          <div class="thumb-strip" id="textStrip"></div>
-        </div>
-        <div class="strip-section">
-          <div class="strip-label">Filter</div>
-          <div class="thumb-strip" id="filterStrip"></div>
-        </div>
-        <div class="strip-section">
-          <div class="strip-label">Overlay</div>
-          <div class="thumb-strip" id="overlayStrip"></div>
-        </div>
-      </div>
-
-      <div class="editor-section">
-        <div class="editor-label">Header</div>
+        <div class="editor-label" style="font-size:16px;">Design Your Header</div>
+        <p style="font-size:12px;color:#aaa;margin-top:-8px;margin-bottom:12px;">This is how the top of your page will look.</p>
         <div class="header-preview" id="headerPreview">
           <div id="hpLogoWrap" style="display:none;"><img id="hpLogo" class="hp-logo" src="" alt="" /></div>
           <div class="hp-title" id="hpTitle"></div>
-          <div class="hp-sub" id="hpSub"></div>
           <div class="hp-btn" id="hpBtn">Subscribe</div>
         </div>
         <div class="style-control">
@@ -343,10 +333,59 @@
         </div>
       </div>
 
-      <label class="checkbox-row">
-        <input type="checkbox" id="editExclude" />
-        <span>Hide videos, podcasts, and imageless posts</span>
-      </label>
+      <div class="editor-section">
+        <div class="editor-label" style="font-size:16px;">Design Your Card</div>
+        <p style="font-size:12px;color:#aaa;margin-top:-8px;margin-bottom:12px;">Choose how each story looks on your grid.</p>
+        <div class="live-preview-wrap">
+          <div class="live-preview ts-broadsheet if-none co-none" id="livePreview">
+            <img id="previewImg" src="/stackpup-sample.jpg" alt="" />
+            <div class="vignette-ov"></div>
+            <div class="color-ov"></div>
+            <div class="ov"><span id="previewTitle">Your title here</span></div>
+          </div>
+        </div>
+        <div class="strip-section">
+          <div class="strip-label">Text style</div>
+          <div class="thumb-strip thumb-strip-wrap" id="textStrip"></div>
+        </div>
+        <div class="strip-section">
+          <div class="strip-label">Filter <span style="font-size:10px;color:#ccc;text-transform:none;letter-spacing:0;font-weight:400;">— scroll for more</span></div>
+          <div class="thumb-strip" id="filterStrip"></div>
+        </div>
+        <div class="strip-section">
+          <div class="strip-label">Overlay <span style="font-size:10px;color:#ccc;text-transform:none;letter-spacing:0;font-weight:400;">— scroll for more</span></div>
+          <div class="thumb-strip" id="overlayStrip"></div>
+        </div>
+      </div>
+
+      <div class="editor-section">
+        <span class="post-manage-toggle" onclick="togglePostManager()">Pin or hide specific posts</span>
+        <div class="hidden" id="postManagerWrap">
+          <p style="font-size:12px;color:#aaa;margin-bottom:10px;">📌 Pin posts to the top of your grid. 👁 Hide posts you don't want shown.</p>
+          <div id="postListLoading" style="font-size:13px;color:#bbb;padding:16px;text-align:center;">Loading posts...</div>
+          <div class="post-list hidden" id="postList"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button onclick="savePostSettings()" id="savePostsBtn" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Save post settings</button>
+            <button onclick="togglePostManager()" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Close</button>
+          </div>
+          <div class="error" id="postManagerError" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <label class="checkbox-row">
+          <input type="checkbox" id="editExcludeImages" />
+          <span>Hide imageless posts</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="editExcludeVideos" />
+          <span>Hide video posts</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="editExcludePodcasts" />
+          <span>Hide podcast episodes</span>
+        </label>
+      </div>
       <button class="btn" id="saveBtn" onclick="savePage()">Save changes</button>
       <div id="proNudge" style="display:none;margin-top:14px;padding:16px 20px;background:#fdf8ef;border:1px solid #f0e4c8;border-radius:10px;text-align:center;line-height:1.6;">
         <p style="font-size:14px;color:#8a6d2b;font-weight:600;margin-bottom:4px;">This design uses Pro styles</p>
@@ -433,6 +472,7 @@
       { value: '#2d3e2f', label: 'Forest' },
       { value: '#3b2030', label: 'Wine' },
       { value: '#f0e6d3', label: 'Sand' },
+      { value: '#7a1f1f', label: 'Red' },
     ];
 
     // Client-side URL validation — matches server-side validatePublicationUrl
@@ -449,7 +489,7 @@
     // Free vs Pro split
     const freeFilters = ['none', 'vintage', 'faded'];
     const freeOverlays = ['none', 'rose', 'ocean'];
-    const uppercaseStyles = ['billboard', 'stencil'];
+    const uppercaseStyles = ['billboard'];
 
     function comboUsesPro() {
       if (!freeFilters.includes(chosenFilter)) return true;
@@ -485,11 +525,10 @@
       const isDark = isDarkBg(chosenHeaderBg);
       hp.style.background = chosenHeaderBg;
       const title = document.getElementById('hpTitle');
-      const sub = document.getElementById('hpSub');
       const btn = document.getElementById('hpBtn');
+      title.textContent = document.getElementById('editDisplayName').value.trim() || 'Your Publication';
       title.style.color = isDark ? '#fff' : '#1a1a1a';
       title.style.fontFamily = chosenHeaderFont ? ("'" + chosenHeaderFont + "', sans-serif") : "'DM Sans', sans-serif";
-      sub.style.color = isDark ? 'rgba(255,255,255,0.5)' : '#888';
       btn.style.background = isDark ? '#fff' : '#1a1a1a';
       btn.style.color = isDark ? '#1a1a1a' : '#fff';
       // Update color palette active states
@@ -517,7 +556,6 @@
       { id: 'minimal', name: 'Minimal', font: "'Inter', sans-serif", weight: 500 },
       { id: 'typewriter', name: 'Typewriter', font: "'Special Elite', monospace", weight: 400 },
       { id: 'editorial', name: 'Editorial', font: "'Playfair Display', serif", weight: 700 },
-      { id: 'stencil', name: 'STENCIL', font: "'Oswald', sans-serif", weight: 500 },
       { id: 'neon', name: 'Neon', font: "'Sora', sans-serif", weight: 600 }
     ];
 
@@ -637,17 +675,135 @@
       buildColorPalette();
       buildFontPicker();
 
-      // Populate header preview
+      // Populate header preview from page data
       const p = currentPage;
-      document.getElementById('hpTitle').textContent = p.display_name;
-      document.getElementById('hpSub').textContent = 'Newsletter';
       if (p.logo_url) {
         document.getElementById('hpLogo').src = p.logo_url;
         document.getElementById('hpLogoWrap').style.display = 'block';
       }
 
+      // Update header preview when publication name changes
+      document.getElementById('editDisplayName').addEventListener('input', updateHeaderPreview);
+
       updatePreview();
       updateHeaderPreview();
+    }
+
+    // Keep header preview in sync with logo changes
+    function syncHeaderLogo(logoUrl) {
+      if (logoUrl) {
+        document.getElementById('hpLogo').src = logoUrl;
+        document.getElementById('hpLogoWrap').style.display = 'block';
+      } else {
+        document.getElementById('hpLogo').src = '';
+        document.getElementById('hpLogoWrap').style.display = 'none';
+      }
+    }
+
+    // Post management
+    let managedPosts = [];
+    let managedPinned = [];
+    let managedHidden = [];
+    let postManagerLoaded = false;
+
+    function togglePostManager() {
+      const wrap = document.getElementById('postManagerWrap');
+      wrap.classList.toggle('hidden');
+      if (!wrap.classList.contains('hidden') && !postManagerLoaded) {
+        loadPostsForManagement();
+      }
+    }
+
+    async function loadPostsForManagement() {
+      if (!currentPage) return;
+      try {
+        const res = await fetch('/api/posts/' + currentPage.slug + '?manage=1');
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        managedPosts = data.posts || [];
+        managedPinned = [...(data.pinnedPosts || [])];
+        managedHidden = [...(data.hiddenPosts || [])];
+        postManagerLoaded = true;
+        document.getElementById('postListLoading').classList.add('hidden');
+        renderPostList();
+      } catch (e) {
+        document.getElementById('postListLoading').textContent = 'Could not load posts.';
+      }
+    }
+
+    function renderPostList() {
+      const list = document.getElementById('postList');
+      list.classList.remove('hidden');
+      list.innerHTML = '';
+
+      // Sort: pinned first, then rest chronologically, hidden at bottom
+      const sorted = [...managedPosts].sort((a, b) => {
+        const aPin = managedPinned.includes(a.postSlug);
+        const bPin = managedPinned.includes(b.postSlug);
+        const aHide = managedHidden.includes(a.postSlug);
+        const bHide = managedHidden.includes(b.postSlug);
+        if (aPin && !bPin) return -1;
+        if (!aPin && bPin) return 1;
+        if (aHide && !bHide) return 1;
+        if (!aHide && bHide) return -1;
+        return 0;
+      });
+
+      sorted.forEach(p => {
+        const isPinned = managedPinned.includes(p.postSlug);
+        const isHidden = managedHidden.includes(p.postSlug);
+        const item = document.createElement('div');
+        item.className = 'post-list-item' + (isHidden ? ' is-hidden' : '');
+        item.innerHTML =
+          (p.img ? '<img class="pli-img" src="' + p.img + '" alt="" />' : '<div class="pli-img" style="background:#eee;"></div>') +
+          '<div class="pli-title">' + escPostHTML(p.title) + '</div>' +
+          '<button class="pli-btn' + (isPinned ? ' active' : '') + '" title="' + (isPinned ? 'Unpin' : 'Pin to top') + '" onclick="togglePin(\'' + p.postSlug + '\')">📌</button>' +
+          '<button class="pli-btn' + (isHidden ? ' active' : '') + '" title="' + (isHidden ? 'Show' : 'Hide') + '" onclick="toggleHide(\'' + p.postSlug + '\')">' + (isHidden ? '👁' : '👁‍🗨') + '</button>';
+        list.appendChild(item);
+      });
+    }
+
+    function escPostHTML(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+    function togglePin(slug) {
+      const idx = managedPinned.indexOf(slug);
+      if (idx >= 0) managedPinned.splice(idx, 1);
+      else managedPinned.push(slug);
+      renderPostList();
+    }
+
+    function toggleHide(slug) {
+      const idx = managedHidden.indexOf(slug);
+      if (idx >= 0) managedHidden.splice(idx, 1);
+      else {
+        managedHidden.push(slug);
+        // Can't be pinned and hidden
+        const pinIdx = managedPinned.indexOf(slug);
+        if (pinIdx >= 0) managedPinned.splice(pinIdx, 1);
+      }
+      renderPostList();
+    }
+
+    async function savePostSettings() {
+      const btn = document.getElementById('savePostsBtn');
+      const err = document.getElementById('postManagerError');
+      err.style.display = 'none';
+      btn.disabled = true; btn.textContent = 'Saving...';
+      try {
+        const res = await fetch('/api/page', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await getToken() },
+          body: JSON.stringify({ pinnedPosts: managedPinned, hiddenPosts: managedHidden })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error);
+        if (data.page) currentPage = data.page;
+        btn.textContent = 'Saved!';
+        setTimeout(() => { btn.textContent = 'Save post settings'; }, 2000);
+      } catch (e) {
+        err.textContent = e.message; err.style.display = 'block';
+      }
+      btn.disabled = false;
     }
 
     async function init() {
@@ -824,7 +980,9 @@
       }
 
       document.getElementById('editDisplayName').value = p.display_name;
-      document.getElementById('editExclude').checked = p.exclude_no_image;
+      document.getElementById('editExcludeImages').checked = p.exclude_no_image !== false;
+      document.getElementById('editExcludeVideos').checked = p.exclude_videos !== false;
+      document.getElementById('editExcludePodcasts').checked = p.exclude_podcasts !== false;
       document.getElementById('editSlug').value = p.slug;
       document.getElementById('editPubUrl').value = p.publication_url;
       document.getElementById('editSlugDisplay').textContent = p.slug;
@@ -1032,6 +1190,7 @@
         document.getElementById('logoThumb').innerHTML = 'No logo';
         document.getElementById('removeLogo').style.display = 'none';
         hasLogo = false;
+        syncHeaderLogo('');
       } catch (e) { alert('Failed to remove logo: ' + e.message); }
     }
 
@@ -1055,7 +1214,9 @@
           textStyle: chosenTextStyle,
           imageFilter: chosenFilter,
           colorOverlay: chosenOverlay,
-          excludeNoImage: document.getElementById('editExclude').checked,
+          excludeNoImage: document.getElementById('editExcludeImages').checked,
+          excludeVideos: document.getElementById('editExcludeVideos').checked,
+          excludePodcasts: document.getElementById('editExcludePodcasts').checked,
           headerBgColor: chosenHeaderBg,
           headerFont: chosenHeaderFont
         };
@@ -1093,6 +1254,7 @@
           document.getElementById('logoThumb').innerHTML = '<img src="' + data.logoUrl + '" alt="Logo" />';
           document.getElementById('removeLogo').style.display = 'inline-block';
           hasLogo = true;
+          syncHeaderLogo(data.logoUrl);
         } catch (err) { alert('Upload failed: ' + err.message); }
       };
       reader.readAsDataURL(file);
