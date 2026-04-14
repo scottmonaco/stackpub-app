@@ -58,8 +58,15 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
       };
       // If subscription is no longer active, revert PRO-only styles to free defaults
       if (!isActive) {
-        updateData.image_filter = 'none';
-        updateData.color_overlay = 'none';
+        const freeFilters = ['none', 'vintage', 'faded'];
+        const freeOverlays = ['none', 'rose', 'ocean'];
+        // Fetch current page to check if values need reverting
+        const { data: page } = await supabaseAdmin.from('pages')
+          .select('image_filter, color_overlay').eq('stripe_subscription_id', subId).single();
+        if (page) {
+          if (!freeFilters.includes(page.image_filter)) updateData.image_filter = 'none';
+          if (!freeOverlays.includes(page.color_overlay)) updateData.color_overlay = 'none';
+        }
       }
       await supabaseAdmin.from('pages').update(updateData).eq('stripe_subscription_id', subId);
       console.log('Subscription', subId, 'status:', subscription.status, '→ is_paid:', isActive);
@@ -565,7 +572,7 @@ app.post('/api/claim', requireAuth, async (req, res) => {
 
 // Update page settings (requires auth)
 app.put('/api/page', requireAuth, async (req, res) => {
-  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage, slug, publicationUrl } = req.body;
+  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage, slug, publicationUrl, headerBgColor, headerFont } = req.body;
   const updates = {};
   if (displayName !== undefined) updates.display_name = displayName;
   if (textStyle !== undefined) updates.text_style = textStyle;
@@ -573,6 +580,8 @@ app.put('/api/page', requireAuth, async (req, res) => {
   if (colorOverlay !== undefined) updates.color_overlay = colorOverlay;
   if (logoUrl !== undefined) updates.logo_url = logoUrl;
   if (excludeNoImage !== undefined) updates.exclude_no_image = excludeNoImage;
+  if (headerBgColor !== undefined) updates.header_bg_color = headerBgColor;
+  if (headerFont !== undefined) updates.header_font = headerFont;
 
   // Handle slug change
   if (slug !== undefined) {
@@ -875,7 +884,9 @@ app.get('/:slug', async (req, res) => {
     imageFilter: page.image_filter || 'none',
     colorOverlay: page.color_overlay || 'none',
     publicationUrl: page.publication_url,
-    isPaid: page.is_paid || false
+    isPaid: page.is_paid || false,
+    headerBgColor: page.header_bg_color || '#ffffff',
+    headerFont: page.header_font || ''
   }));
 });
 
@@ -896,6 +907,26 @@ const textStyleFonts = {
   handwritten: {
     import: "family=Caveat:wght@500;700&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
     title: "'Caveat', cursive", body: "'DM Sans', sans-serif"
+  },
+  minimal: {
+    import: "family=Inter:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Inter', sans-serif", body: "'DM Sans', sans-serif"
+  },
+  typewriter: {
+    import: "family=Special+Elite&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Special Elite', monospace", body: "'DM Sans', sans-serif"
+  },
+  editorial: {
+    import: "family=Playfair+Display:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Playfair Display', serif", body: "'DM Sans', sans-serif"
+  },
+  stencil: {
+    import: "family=Oswald:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Oswald', sans-serif", body: "'DM Sans', sans-serif"
+  },
+  neon: {
+    import: "family=Sora:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'Sora', sans-serif", body: "'DM Sans', sans-serif"
   }
 };
 
@@ -946,6 +977,63 @@ function getTextStyleCSS(textStyle, fonts) {
         padding: 4cqi 2cqi;
         text-shadow: 0 2px 6px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.4);
         display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+      }`,
+    minimal: `
+      .card .overlay {
+        display: flex; align-items: flex-end; text-align: left; padding: 6cqi;
+        background: linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 40%);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 500; font-size: 6.5cqi;
+        color: rgba(255,255,255,0.9); line-height: 1.2; letter-spacing: 0.01em;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+      }`,
+    typewriter: `
+      .card .overlay {
+        display: flex; align-items: center; justify-content: center;
+        text-align: center; padding: 8cqi; background: rgba(0,0,0,0.2);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 400; font-size: 8cqi;
+        color: #fff; line-height: 1.35;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+      }`,
+    editorial: `
+      .card .overlay {
+        display: flex; align-items: flex-start; justify-content: flex-end;
+        text-align: right; padding: 7cqi;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 55%);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 700; font-size: 9cqi;
+        color: #fff; line-height: 1.1; letter-spacing: -0.02em;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);
+        display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+      }`,
+    stencil: `
+      .card .overlay {
+        display: flex; align-items: flex-end; justify-content: center;
+        text-align: center; padding: 6cqi;
+        background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 500; font-size: 10cqi;
+        color: #fff; text-transform: uppercase; line-height: 1.0; letter-spacing: 0.12em;
+        text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+      }`,
+    neon: `
+      .card .overlay {
+        display: flex; align-items: center; justify-content: center;
+        text-align: center; padding: 8cqi; background: rgba(0,0,0,0.3);
+      }
+      .card .card-title {
+        font-family: ${fonts.title}; font-weight: 600; font-size: 9cqi;
+        color: #fff; line-height: 1.15;
+        text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.2);
+        display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
       }`
   };
   return styles[textStyle] || styles.broadsheet;
@@ -962,31 +1050,46 @@ function getFilterCSS(imageFilter) {
       .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.8) contrast(1.1); transform: scale(1.03); }`,
     noir: `
       .card img { filter: brightness(0.7) saturate(0) contrast(1.3); }
-      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0) contrast(1.2); transform: scale(1.03); }`
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0) contrast(1.2); transform: scale(1.03); }`,
+    blur: `
+      .card img { filter: brightness(0.7) saturate(0.9) blur(2px); }
+      .card:hover img, .card:active img { filter: brightness(0.95) saturate(1.1) blur(0); transform: scale(1.03); }`,
+    film: `
+      .card img { filter: brightness(0.7) saturate(0.4) sepia(0.3) contrast(0.95); }
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0.5) sepia(0.2) contrast(1.0); transform: scale(1.03); }`,
+    faded: `
+      .card img { filter: brightness(0.85) saturate(0.6) contrast(0.8); }
+      .card:hover img, .card:active img { filter: brightness(0.95) saturate(0.7) contrast(0.85); transform: scale(1.03); }`,
+    warm: `
+      .card img { filter: brightness(0.75) saturate(1.1) sepia(0.15) hue-rotate(-10deg); }
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(1.2) sepia(0.1) hue-rotate(-10deg); transform: scale(1.03); }`,
+    cool: `
+      .card img { filter: brightness(0.75) saturate(0.8) hue-rotate(15deg); }
+      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0.9) hue-rotate(15deg); transform: scale(1.03); }`
   };
   return filters[imageFilter] || '';
 }
 
 function getOverlayCSS(colorOverlay) {
+  const overlayTemplate = (bg) => `
+      .card::after { content:''; position:absolute; inset:0; z-index:1; background:${bg}; transition:opacity 0.5s ease; pointer-events:none; }
+      .card:hover::after, .card:active::after { opacity:0; }
+      .card .overlay { z-index:2; }`;
   const overlays = {
     none: '',
-    rose: `
-      .card::after { content:''; position:absolute; inset:0; z-index:1; background:rgba(180,60,100,0.35); transition:opacity 0.5s ease; pointer-events:none; }
-      .card:hover::after, .card:active::after { opacity:0; }
-      .card .overlay { z-index:2; }`,
-    ocean: `
-      .card::after { content:''; position:absolute; inset:0; z-index:1; background:rgba(20,60,120,0.4); transition:opacity 0.5s ease; pointer-events:none; }
-      .card:hover::after, .card:active::after { opacity:0; }
-      .card .overlay { z-index:2; }`,
-    gold: `
-      .card::after { content:''; position:absolute; inset:0; z-index:1; background:rgba(160,110,20,0.35); transition:opacity 0.5s ease; pointer-events:none; }
-      .card:hover::after, .card:active::after { opacity:0; }
-      .card .overlay { z-index:2; }`
+    rose: overlayTemplate('rgba(180,60,100,0.35)'),
+    ocean: overlayTemplate('rgba(20,60,120,0.4)'),
+    gold: overlayTemplate('rgba(160,110,20,0.35)'),
+    forest: overlayTemplate('rgba(30,80,40,0.35)'),
+    violet: overlayTemplate('rgba(80,30,120,0.35)'),
+    ember: overlayTemplate('rgba(180,60,20,0.3)'),
+    midnight: overlayTemplate('rgba(10,15,50,0.45)'),
+    slate: overlayTemplate('rgba(60,70,80,0.35)')
   };
   return overlays[colorOverlay] || '';
 }
 
-function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, colorOverlay, publicationUrl, isPaid }) {
+function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, colorOverlay, publicationUrl, isPaid, headerBgColor, headerFont }) {
   let header;
   if (logoUrl) {
     header = `<img class="logo" src="${esc(logoUrl)}" alt="${esc(displayName)}" />\n    <div class="site-name sub">${esc(displayName)}</div>`;
@@ -1000,6 +1103,11 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
   const filterCSS = getFilterCSS(imageFilter || 'none');
   const overlayCSS = getOverlayCSS(colorOverlay || 'none');
 
+  // Header customization
+  const bgColor = headerBgColor || '#ffffff';
+  const headerFontImport = headerFont ? `&family=${headerFont.replace(/ /g, '+')}:wght@400;600;700` : '';
+  const headerFontCSS = headerFont ? `font-family: '${headerFont}', sans-serif;` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1009,17 +1117,17 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
   <meta property="og:title" content="${esc(displayName)}" />
   <meta property="og:description" content="Stories by ${esc(displayName)}" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?${fonts.import}&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?${fonts.import}${headerFontImport}&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { background: #fff; font-family: ${fonts.body}; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-    header { display: flex; flex-direction: column; align-items: center; padding: 44px 24px 22px; gap: 10px; }
+    header { display: flex; flex-direction: column; align-items: center; padding: 44px 24px 22px; gap: 10px; background: ${bgColor}; }
     .logo { max-width: clamp(160px, 42vw, 280px); max-height: 80px; width: auto; height: auto; display: block; object-fit: contain; }
-    .site-name { font-weight: 700; font-size: clamp(24px, 5vw, 36px); letter-spacing: -0.02em; color: #1a1a1a; text-align: center; }
-    .site-name.sub { font-size: clamp(14px, 3vw, 18px); font-weight: 400; color: #888; letter-spacing: 0.02em; margin-top: -4px; }
-    .subscribe-btn { display: inline-block; padding: 11px 30px; margin-top: 6px; background: #1a1a1a; color: #fff; font-family: ${fonts.body}; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 6px; transition: background 0.2s; }
-    .subscribe-btn:hover { background: #333; }
-    .instruction { font-weight: 300; font-size: 13px; color: #ccc; margin-top: 4px; }
+    .site-name { font-weight: 700; font-size: clamp(24px, 5vw, 36px); letter-spacing: -0.02em; color: ${isDarkColor(bgColor) ? '#fff' : '#1a1a1a'}; text-align: center; ${headerFontCSS} }
+    .site-name.sub { font-size: clamp(14px, 3vw, 18px); font-weight: 400; color: ${isDarkColor(bgColor) ? 'rgba(255,255,255,0.6)' : '#888'}; letter-spacing: 0.02em; margin-top: -4px; ${headerFontCSS} }
+    .subscribe-btn { display: inline-block; padding: 11px 30px; margin-top: 6px; background: ${isDarkColor(bgColor) ? '#fff' : '#1a1a1a'}; color: ${isDarkColor(bgColor) ? '#1a1a1a' : '#fff'}; font-family: ${fonts.body}; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 6px; transition: background 0.2s; }
+    .subscribe-btn:hover { background: ${isDarkColor(bgColor) ? '#e0e0e0' : '#333'}; }
+    .instruction { font-weight: 300; font-size: 13px; color: ${isDarkColor(bgColor) ? 'rgba(255,255,255,0.4)' : '#ccc'}; margin-top: 4px; }
     .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; margin-top: 10px; max-width: 935px; margin-left: auto; margin-right: auto; }
     .card { position: relative; aspect-ratio: 3/4; overflow: hidden; display: block; text-decoration: none; background: #1a1a1a; container-type: inline-size; }
     .card img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.7) saturate(0.9); transition: filter 0.4s ease, transform 0.5s ease; }
@@ -1482,6 +1590,15 @@ function notFoundHTML(slug) {
   <p>No portfolio found for <strong>${slug}</strong>.</p>
   <p><a href="/">Create one at stack.pub</a></p>
   </body></html>`;
+}
+
+// Simple hex color luminance check — returns true if color is dark
+function isDarkColor(hex) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substr(0, 2), 16);
+  const g = parseInt(c.substr(2, 2), 16);
+  const b = parseInt(c.substr(4, 2), 16);
+  return (r * 0.299 + g * 0.587 + b * 0.114) < 140;
 }
 
 function esc(str) {
