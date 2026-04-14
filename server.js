@@ -1060,31 +1060,43 @@ function getFilterCSS(imageFilter) {
     faded: `
       .card img { filter: brightness(0.85) saturate(0.6) contrast(0.8); }
       .card:hover img, .card:active img { filter: brightness(0.95) saturate(0.7) contrast(0.85); transform: scale(1.03); }`,
-    warm: `
-      .card img { filter: brightness(0.75) saturate(1.1) sepia(0.15) hue-rotate(-10deg); }
-      .card:hover img, .card:active img { filter: brightness(0.9) saturate(1.2) sepia(0.1) hue-rotate(-10deg); transform: scale(1.03); }`,
-    cool: `
-      .card img { filter: brightness(0.75) saturate(0.8) hue-rotate(15deg); }
-      .card:hover img, .card:active img { filter: brightness(0.9) saturate(0.9) hue-rotate(15deg); transform: scale(1.03); }`
+    duotone: `
+      .card img { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(1.5) brightness(0.7) contrast(1.1); }
+      .card:hover img, .card:active img { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(1.5) brightness(0.9) contrast(1.05); transform: scale(1.03); }`,
+    contrast: `
+      .card img { filter: brightness(0.65) contrast(1.8) saturate(1.2); }
+      .card:hover img, .card:active img { filter: brightness(0.85) contrast(1.5) saturate(1.15); transform: scale(1.03); }`,
+    vignette: `
+      .card img { filter: brightness(0.7) saturate(0.9); }
+      .card::before { content:''; position:absolute; inset:0; z-index:1; background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%); pointer-events:none; transition: opacity 0.5s ease; }
+      .card:hover::before, .card:active::before { opacity: 0.4; }
+      .card .overlay { z-index:3; }`
   };
   return filters[imageFilter] || '';
 }
 
 function getOverlayCSS(colorOverlay) {
-  const overlayTemplate = (bg) => `
-      .card::after { content:''; position:absolute; inset:0; z-index:1; background:${bg}; transition:opacity 0.5s ease; pointer-events:none; }
+  const solidTemplate = (bg) => `
+      .card::after { content:''; position:absolute; inset:0; z-index:2; background:${bg}; transition:opacity 0.5s ease; pointer-events:none; }
       .card:hover::after, .card:active::after { opacity:0; }
-      .card .overlay { z-index:2; }`;
+      .card .overlay { z-index:3; }`;
   const overlays = {
     none: '',
-    rose: overlayTemplate('rgba(180,60,100,0.35)'),
-    ocean: overlayTemplate('rgba(20,60,120,0.4)'),
-    gold: overlayTemplate('rgba(160,110,20,0.35)'),
-    forest: overlayTemplate('rgba(30,80,40,0.35)'),
-    violet: overlayTemplate('rgba(80,30,120,0.35)'),
-    ember: overlayTemplate('rgba(180,60,20,0.3)'),
-    midnight: overlayTemplate('rgba(10,15,50,0.45)'),
-    slate: overlayTemplate('rgba(60,70,80,0.35)')
+    rose: solidTemplate('rgba(180,60,100,0.35)'),
+    ocean: solidTemplate('rgba(20,60,120,0.4)'),
+    gold: solidTemplate('rgba(160,110,20,0.35)'),
+    forest: solidTemplate('rgba(30,80,40,0.35)'),
+    violet: solidTemplate('rgba(80,30,120,0.35)'),
+    ember: solidTemplate('rgba(180,60,20,0.3)'),
+    midnight: solidTemplate('rgba(10,15,50,0.45)'),
+    leak: `
+      .card::after { content:''; position:absolute; inset:0; z-index:2; background: radial-gradient(ellipse at 15% 15%, rgba(255,180,80,0.5) 0%, transparent 60%); transition:opacity 0.5s ease; pointer-events:none; }
+      .card:hover::after, .card:active::after { opacity:0; }
+      .card .overlay { z-index:3; }`,
+    gradient: `
+      .card::after { content:''; position:absolute; inset:0; z-index:2; background: linear-gradient(135deg, rgba(120,40,200,0.35) 0%, rgba(255,120,50,0.25) 100%); transition:opacity 0.5s ease; pointer-events:none; }
+      .card:hover::after, .card:active::after { opacity:0; }
+      .card .overlay { z-index:3; }`
   };
   return overlays[colorOverlay] || '';
 }
