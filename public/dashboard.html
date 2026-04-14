@@ -508,18 +508,9 @@
       const preview = document.getElementById('livePreview');
       preview.className = 'live-preview ts-' + chosenTextStyle + ' if-' + chosenFilter + ' co-' + chosenOverlay;
 
-      // Use pinned post content if available, otherwise placeholder
+      // Use placeholder title (main preview stays on original post image)
       const titleEl = document.getElementById('previewTitle');
-      let displayTitle = 'Your title here';
-      if (pinnedSlugs && pinnedSlugs.length > 0 && pinPosts && pinPosts.length > 0) {
-        const lastPinned = pinnedSlugs[pinnedSlugs.length - 1];
-        const post = pinPosts.find(p => p.postSlug === lastPinned);
-        if (post) {
-          displayTitle = post.title;
-          document.getElementById('previewImg').src = post.img;
-        }
-      }
-      titleEl.textContent = uppercaseStyles.includes(chosenTextStyle) ? displayTitle.toUpperCase() : displayTitle;
+      titleEl.textContent = uppercaseStyles.includes(chosenTextStyle) ? 'YOUR TITLE HERE' : 'Your title here';
 
       // Update active states on strips
       document.querySelectorAll('#textStrip .thumb-item').forEach(el => el.classList.toggle('active', el.dataset.val === chosenTextStyle));
@@ -533,9 +524,6 @@
       } else if (proNudge) {
         proNudge.style.display = 'none';
       }
-
-      // Re-render pin strip with updated styles if loaded
-      if (pinLoaded) renderPinStrip();
     }
 
     function updateHeaderPreview() {
@@ -771,13 +759,17 @@
       strip.classList.remove('hidden');
       strip.innerHTML = '';
 
-      // Get current style settings for preview
-      const currentFilter = FILTERS.find(f => f.id === chosenFilter);
-      const currentOverlay = OVERLAYS.find(o => o.id === chosenOverlay);
-      const currentText = TEXT_STYLES.find(t => t.id === chosenTextStyle);
+      // Use SAVED page styles, not live editor selections
+      const savedFilter = currentPage ? (currentPage.image_filter || 'none') : 'none';
+      const savedOverlay = currentPage ? (currentPage.color_overlay || 'none') : 'none';
+      const savedTextStyle = currentPage ? (currentPage.text_style || 'broadsheet') : 'broadsheet';
+
+      const currentFilter = FILTERS.find(f => f.id === savedFilter);
+      const currentOverlay = OVERLAYS.find(o => o.id === savedOverlay);
+      const currentText = TEXT_STYLES.find(t => t.id === savedTextStyle);
       const filterCSS = currentFilter ? currentFilter.css : 'brightness(0.7) saturate(0.9)';
       const overlayBg = currentOverlay && currentOverlay.bg ? currentOverlay.bg : '';
-      const vignetteCSS = chosenFilter === 'vignette' ? 'background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);' : '';
+      const vignetteCSS = savedFilter === 'vignette' ? 'background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);' : '';
 
       pinPosts.forEach(p => {
         const pinIndex = pinnedSlugs.indexOf(p.postSlug);
@@ -785,7 +777,7 @@
         const card = document.createElement('div');
         card.className = 'pin-card' + (isPinned ? ' pinned' : '');
 
-        let titleText = uppercaseStyles.includes(chosenTextStyle) ? p.title.toUpperCase() : p.title;
+        let titleText = ['billboard'].includes(savedTextStyle) ? p.title.toUpperCase() : p.title;
         let titleFont = currentText ? currentText.font : "'DM Sans', sans-serif";
         let titleWeight = currentText ? currentText.weight : 400;
 
@@ -814,29 +806,11 @@
         pinnedSlugs.push(slug);
       }
       renderPinStrip();
-      // Update live preview to show the most recently pinned post
-      updatePreviewFromPins();
     }
 
     function clearAllPins() {
       pinnedSlugs = [];
       renderPinStrip();
-      updatePreviewFromPins();
-    }
-
-    function updatePreviewFromPins() {
-      if (pinnedSlugs.length > 0) {
-        const lastPinned = pinnedSlugs[pinnedSlugs.length - 1];
-        const post = pinPosts.find(p => p.postSlug === lastPinned);
-        if (post && post.img) {
-          document.getElementById('previewImg').src = post.img;
-          if (post.title) {
-            const titleEl = document.getElementById('previewTitle');
-            const isUpper = ['billboard'].includes(chosenTextStyle);
-            titleEl.textContent = isUpper ? post.title.toUpperCase() : post.title;
-          }
-        }
-      }
     }
 
     async function savePins() {
@@ -1067,14 +1041,17 @@
 
       initEditor(img);
 
-      // Show upgrade or billing card + pin section Pro gate
+      // Unlock pin section for paid users (independent of billing)
       if (isPaid) {
-        document.getElementById('billingCard').classList.remove('hidden');
-        document.getElementById('upgradeCard').classList.add('hidden');
-        // Unlock pin section
         document.getElementById('pinProGate').style.display = 'none';
         document.getElementById('pinWrap').classList.remove('hidden');
         loadPinPosts();
+      }
+
+      // Show upgrade or billing card
+      if (isPaid) {
+        document.getElementById('billingCard').classList.remove('hidden');
+        document.getElementById('upgradeCard').classList.add('hidden');
         // Fetch billing details
         try {
           const billingRes = await fetch('/api/billing', { headers: { 'Authorization': 'Bearer ' + await getToken() } });
@@ -1283,6 +1260,9 @@
         if (!res.ok || data.error) throw new Error(data.error);
 
         if (data.page) currentPage = data.page;
+
+        // Re-render pin strip with newly saved styles
+        if (pinLoaded) renderPinStrip();
 
         btn.textContent = 'Save changes'; btn.disabled = false;
         success.style.display = 'block';
