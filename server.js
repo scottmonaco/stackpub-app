@@ -131,6 +131,38 @@ function parseSubstackUrl(input) {
   return clean.split('/')[0];
 }
 
+// Validate publication URL before parsing — catches common user mistakes
+function validatePublicationUrl(input) {
+  const clean = input.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+  // Reject bare @ handles
+  if (/^@/.test(clean)) {
+    return { valid: false, error: 'That looks like a username handle. Your publication URL looks like yourname.substack.com or your custom domain.' };
+  }
+
+  // Reject substack.com/@username (profile URL)
+  if (/^substack\.com\/@/.test(clean)) {
+    return { valid: false, error: 'That\'s a Substack profile URL, not a publication URL. Your publication URL looks like yourname.substack.com or your custom domain.' };
+  }
+
+  // Reject substack.com/profile/...
+  if (/^substack\.com\/profile/.test(clean)) {
+    return { valid: false, error: 'That\'s a Substack profile URL, not a publication URL. Your publication URL looks like yourname.substack.com or your custom domain.' };
+  }
+
+  // Reject bare substack.com or open.substack.com
+  if (/^(open\.)?substack\.com(\/.*)?$/.test(clean) && !/^[a-z0-9_-]+\.substack\.com/.test(clean)) {
+    return { valid: false, error: 'Please enter your publication URL, not substack.com. It looks like yourname.substack.com or your custom domain.' };
+  }
+
+  // Reject substack.com/home or other substack.com paths that aren't publications
+  if (/^substack\.com\/(home|search|discover|inbox|settings|recommendations)/.test(clean)) {
+    return { valid: false, error: 'That\'s a Substack page, not a publication URL. Your publication URL looks like yourname.substack.com or your custom domain.' };
+  }
+
+  return { valid: true };
+}
+
 // Discover the Substack subdomain from a custom domain
 async function discoverSubstackSubdomain(customDomain) {
   try {
@@ -325,6 +357,109 @@ async function fetchSubstackFeed(publication) {
   return await fetchViaRSS(publication);
 }
 
+// Paginated fetch — gets a single batch from Substack API
+// Returns { posts, nextOffset, hasMore, name, logo, substackUrl }
+async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, excludeNoImage = true) {
+  const isCustomDomain = publication.includes('.');
+
+  // Build base URL list (same logic as fetchViaAPI)
+  const baseUrls = [];
+  if (isCustomDomain) {
+    baseUrls.push(`https://${publication}`);
+    const subdomain = await discoverSubstackSubdomain(publication);
+    if (subdomain) baseUrls.push(`https://${subdomain}.substack.com`);
+  } else {
+    baseUrls.push(`https://${publication}.substack.com`);
+  }
+
+  // Overfetch to handle filtering (fetch 2x what we need)
+  const fetchLimit = excludeNoImage ? limit * 3 : limit + 6;
+
+  let lastError;
+  for (const baseUrl of baseUrls) {
+    try {
+      const url = `${baseUrl}/api/v1/archive?sort=new&search=&offset=${substackOffset}&limit=${fetchLimit}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
+        signal: controller.signal,
+        redirect: 'follow'
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error('Non-array response');
+
+      const linkBase = isCustomDomain ? `https://${publication}` : baseUrl;
+
+      let allPosts = data.map(post => {
+        const title = post.title || '';
+        const slug = post.slug || '';
+        const link = `${linkBase}/p/${slug}?ref=stackpub`;
+        const img = post.cover_image || '';
+        const postType = post.type || 'newsletter';
+        const isArticle = (postType === 'newsletter' || postType === 'thread');
+        return { title, link, img, isArticle };
+      }).filter(p => p.title);
+
+      // Apply filtering
+      if (excludeNoImage) {
+        allPosts = allPosts.filter(p => p.img && p.isArticle !== false);
+      }
+
+      // How many raw posts did Substack return?
+      const rawCount = data.length;
+      const hasMore = rawCount >= fetchLimit; // Substack returned a full page, so there's probably more
+      const nextOffset = substackOffset + rawCount;
+
+      // Trim to requested limit
+      const posts = allPosts.slice(0, limit);
+
+      // Get publication metadata on first call
+      let name = publication, logo = '', substackUrl = isCustomDomain ? `https://${publication}` : baseUrl;
+      if (substackOffset === 0) {
+        try {
+          const metaRes = await fetch(`${baseUrl}/api/v1/publication`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' }
+          });
+          if (metaRes.ok) {
+            const meta = await metaRes.json();
+            name = meta.name || publication;
+            logo = meta.logo_url || meta.logo_url_small || '';
+            if (meta.custom_domain) substackUrl = `https://${meta.custom_domain}`;
+          }
+        } catch (e) {}
+      }
+
+      return { posts, nextOffset, hasMore, name, logo, substackUrl };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  // Fallback: if API batch failed and this is the first page, try RSS
+  if (substackOffset === 0) {
+    try {
+      const rssFeed = await fetchViaRSS(publication);
+      let posts = rssFeed.posts;
+      if (excludeNoImage) posts = posts.filter(p => p.img && p.isArticle !== false);
+      return {
+        posts: posts.slice(0, limit),
+        nextOffset: null,
+        hasMore: false,
+        name: rssFeed.name,
+        logo: rssFeed.logo,
+        substackUrl: rssFeed.substackUrl
+      };
+    } catch (e) {}
+  }
+
+  throw lastError || new Error('Could not fetch posts');
+}
+
 // ─── API Routes ──────────────────────────────────────────────────────────────
 
 // Check if a slug is available
@@ -338,6 +473,8 @@ app.get('/api/check-slug/:slug', async (req, res) => {
 app.post('/api/preview', async (req, res) => {
   const { publicationUrl } = req.body;
   if (!publicationUrl) return res.status(400).json({ error: 'Publication URL required' });
+  const validation = validatePublicationUrl(publicationUrl);
+  if (!validation.valid) return res.status(400).json({ error: validation.error });
   const publication = parseSubstackUrl(publicationUrl);
   if (!publication) return res.status(400).json({ error: 'Could not parse URL' });
   try {
@@ -361,6 +498,9 @@ app.post('/api/claim', requireAuth, async (req, res) => {
   if (!publicationUrl || !slug || !displayName) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+
+  const urlValidation = validatePublicationUrl(publicationUrl);
+  if (!urlValidation.valid) return res.status(400).json({ error: urlValidation.error });
 
   const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9_-]/g, '');
   if (cleanSlug.length < 3 || cleanSlug.length > 40) {
@@ -410,7 +550,7 @@ app.post('/api/claim', requireAuth, async (req, res) => {
 
 // Update page settings (requires auth)
 app.put('/api/page', requireAuth, async (req, res) => {
-  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage } = req.body;
+  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage, slug, publicationUrl } = req.body;
   const updates = {};
   if (displayName !== undefined) updates.display_name = displayName;
   if (textStyle !== undefined) updates.text_style = textStyle;
@@ -418,6 +558,38 @@ app.put('/api/page', requireAuth, async (req, res) => {
   if (colorOverlay !== undefined) updates.color_overlay = colorOverlay;
   if (logoUrl !== undefined) updates.logo_url = logoUrl;
   if (excludeNoImage !== undefined) updates.exclude_no_image = excludeNoImage;
+
+  // Handle slug change
+  if (slug !== undefined) {
+    const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (cleanSlug.length < 3 || cleanSlug.length > 40) {
+      return res.status(400).json({ error: 'URL must be 3-40 characters' });
+    }
+    const reserved = ['api', 'login', 'dashboard', 'coming-soon', 'terms', 'privacy', 'contact', 'favicon.ico'];
+    if (reserved.includes(cleanSlug)) {
+      return res.status(400).json({ error: 'That URL is reserved' });
+    }
+    // Check if slug is different from current
+    const { data: currentPage } = await req.authClient.from('pages')
+      .select('slug').eq('user_id', req.user.id).single();
+    if (currentPage && currentPage.slug !== cleanSlug) {
+      // Check availability
+      const { data: taken } = await supabase.from('pages')
+        .select('slug').eq('slug', cleanSlug).single();
+      if (taken) {
+        return res.status(400).json({ error: `stack.pub/${cleanSlug} is already taken` });
+      }
+      updates.slug = cleanSlug;
+    }
+  }
+
+  // Handle publication URL change
+  if (publicationUrl !== undefined) {
+    const urlValidation = validatePublicationUrl(publicationUrl);
+    if (!urlValidation.valid) return res.status(400).json({ error: urlValidation.error });
+    updates.publication_url = publicationUrl;
+  }
+
   updates.updated_at = new Date().toISOString();
 
   const { data, error } = await req.authClient.from('pages')
@@ -633,33 +805,37 @@ app.get('/api/posts/:slug', async (req, res) => {
 
   const publication = parseSubstackUrl(page.publication_url);
   try {
-    let posts, feed;
     if (preview) {
-      // Only fetch first batch (12 posts) for preview images
+      // Dashboard preview — only fetch first batch for preview images
       const isCustomDomain = publication.includes('.');
       const baseUrl = isCustomDomain ? `https://${publication}` : `https://${publication}.substack.com`;
       const url = `${baseUrl}/api/v1/archive?sort=new&search=&offset=0&limit=12`;
       const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' } });
+      let posts = [];
       if (r.ok) {
         const data = await r.json();
         posts = (Array.isArray(data) ? data : []).map(p => ({
           title: p.title || '', link: '', img: p.cover_image || '', isArticle: true
         })).filter(p => p.img);
-      } else {
-        posts = [];
       }
-      res.json({ posts, substackUrl: page.publication_url, postCount: posts.length });
-    } else {
-      feed = await fetchSubstackFeed(publication);
-      posts = feed.posts;
-      if (page.exclude_no_image) posts = posts.filter(p => p.img && p.isArticle !== false);
-      res.json({
-        posts,
-        substackUrl: feed.substackUrl || page.publication_url,
-        logo: page.logo_url || feed.logo || '',
-        postCount: posts.length
-      });
+      return res.json({ posts, substackUrl: page.publication_url, postCount: posts.length });
     }
+
+    // Paginated fetch for portfolio pages
+    const limit = Math.min(parseInt(req.query.limit) || 24, 60);
+    const offset = parseInt(req.query.offset) || 0;
+    const excludeNoImage = page.exclude_no_image;
+
+    const batch = await fetchSubstackBatch(publication, offset, limit, excludeNoImage);
+
+    res.json({
+      posts: batch.posts,
+      substackUrl: batch.substackUrl || page.publication_url,
+      logo: page.logo_url || batch.logo || '',
+      postCount: batch.posts.length,
+      hasMore: batch.hasMore,
+      nextOffset: batch.nextOffset
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -813,7 +989,6 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${esc(displayName)}</title>
   <meta property="og:title" content="${esc(displayName)}" />
@@ -824,7 +999,7 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { background: #fff; font-family: ${fonts.body}; min-height: 100vh; -webkit-font-smoothing: antialiased; }
     header { display: flex; flex-direction: column; align-items: center; padding: 44px 24px 22px; gap: 10px; }
-    .logo { width: clamp(160px, 42vw, 280px); height: auto; display: block; }
+    .logo { max-width: clamp(160px, 42vw, 280px); max-height: 80px; width: auto; height: auto; display: block; object-fit: contain; }
     .site-name { font-weight: 700; font-size: clamp(24px, 5vw, 36px); letter-spacing: -0.02em; color: #1a1a1a; text-align: center; }
     .site-name.sub { font-size: clamp(14px, 3vw, 18px); font-weight: 400; color: #888; letter-spacing: 0.02em; margin-top: -4px; }
     .subscribe-btn { display: inline-block; padding: 11px 30px; margin-top: 6px; background: #1a1a1a; color: #fff; font-family: ${fonts.body}; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 6px; transition: background 0.2s; }
@@ -1041,6 +1216,15 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
       const raw = document.getElementById('spPubUrl').value.trim();
       if (!raw) return spShowError('spError1', 'Please enter your newsletter URL.');
 
+      // Client-side URL validation
+      const clean = raw.toLowerCase().replace(/^https?:\\/\\//, '').replace(/\\/$/, '');
+      if (/^@/.test(clean) || /^substack\\.com\\/@/.test(clean) || /^substack\\.com\\/profile/.test(clean)) {
+        return spShowError('spError1', 'That looks like a Substack profile URL. Your publication URL looks like yourname.substack.com or your custom domain.');
+      }
+      if (/^(open\\.)?substack\\.com(\\/.*)?$/.test(clean) && !/^[a-z0-9_-]+\\.substack\\.com/.test(clean)) {
+        return spShowError('spError1', 'Please enter your publication URL, not substack.com. It looks like yourname.substack.com.');
+      }
+
       const btn = document.querySelector('#spStep1 .sp-modal-go');
       btn.disabled = true; btn.textContent = 'Checking...';
       document.getElementById('spError1').style.display = 'none';
@@ -1055,13 +1239,22 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
         if (res.ok) {
           const data = await res.json();
           if (data.postCount > 0) {
-            // Valid Substack publication — proceed to email
             spPubUrlValue = raw;
             btn.disabled = false; btn.textContent = 'Continue';
             spGoStep(2);
             setTimeout(() => document.getElementById('spEmail').focus(), 100);
             return;
           }
+        } else {
+          // Show server validation error if it's a URL format issue
+          try {
+            const errData = await res.json();
+            if (errData.error && res.status === 400) {
+              spShowError('spError1', errData.error);
+              btn.disabled = false; btn.textContent = 'Continue';
+              return;
+            }
+          } catch (e) {}
         }
 
         // Could not validate — show waitlist
@@ -1069,7 +1262,6 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
         btn.disabled = false; btn.textContent = 'Continue';
         spGoStep('spStepW');
       } catch (e) {
-        // Network error or server issue — show waitlist as fallback
         spPubUrlValue = raw;
         btn.disabled = false; btn.textContent = 'Continue';
         spGoStep('spStepW');
@@ -1202,12 +1394,20 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
 
     // Portfolio page logic
     const slug = '${esc(slug)}';
-    async function loadPosts() {
+    let nextOffset = 0;
+    let hasMore = true;
+    let isLoading = false;
+    let totalPosts = 0;
+
+    async function loadPosts(initial) {
+      if (isLoading || !hasMore) return;
+      isLoading = true;
       try {
-        const res = await fetch('/api/posts/' + slug);
+        const url = '/api/posts/' + slug + '?limit=24&offset=' + nextOffset;
+        const res = await fetch(url);
         if (!res.ok) throw new Error('Failed to load');
         const data = await res.json();
-        if (data.substackUrl) document.getElementById('subscribeBtn').href = data.substackUrl + '/subscribe';
+        if (initial && data.substackUrl) document.getElementById('subscribeBtn').href = data.substackUrl + '/subscribe';
         const grid = document.getElementById('grid');
         data.posts.forEach((p, i) => {
           const card = document.createElement('a');
@@ -1218,13 +1418,41 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
           ov.innerHTML = '<span class="card-title">' + escHTML(p.title) + '</span>';
           card.appendChild(ov); grid.appendChild(card);
         });
-        document.getElementById('postCount').textContent = data.posts.length;
-        document.getElementById('footer').style.display = 'block';
-        document.getElementById('loading').style.display = 'none';
-      } catch (e) { document.getElementById('loading').innerHTML = '<p class="loading-text">Could not load stories. Please try again.</p>'; }
+        totalPosts += data.posts.length;
+        hasMore = data.hasMore && data.posts.length > 0;
+        nextOffset = data.nextOffset || 0;
+        document.getElementById('postCount').textContent = totalPosts;
+        if (initial) {
+          document.getElementById('footer').style.display = 'block';
+          document.getElementById('loading').style.display = 'none';
+        }
+        // Hide the scroll sentinel loading indicator
+        const sentinel = document.getElementById('scrollSentinel');
+        if (sentinel) sentinel.style.display = hasMore ? 'block' : 'none';
+      } catch (e) {
+        if (initial) document.getElementById('loading').innerHTML = '<p class="loading-text">Could not load stories. Please try again.</p>';
+      }
+      isLoading = false;
     }
+
     function escHTML(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
-    loadPosts();
+
+    // Initial load
+    loadPosts(true);
+
+    // Infinite scroll — observe a sentinel element below the grid
+    const sentinel = document.createElement('div');
+    sentinel.id = 'scrollSentinel';
+    sentinel.style.cssText = 'text-align:center;padding:32px 24px;font-size:12px;color:#ccc;';
+    sentinel.textContent = 'Loading more...';
+    document.getElementById('grid').insertAdjacentElement('afterend', sentinel);
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) loadPosts(false);
+      }, { rootMargin: '400px' });
+      observer.observe(sentinel);
+    }
   </script>
 </body>
 </html>`;
