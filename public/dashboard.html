@@ -211,20 +211,38 @@
       <p class="page-url"><a id="pageLink" href="#" target="_blank"></a></p>
 
       <div class="field">
-        <label>Page URL</label>
-        <input type="text" id="editSlug" oninput="checkEditSlug()" />
-        <div class="slug-preview" id="editSlugPreview">stack.pub/<strong></strong></div>
-        <div class="slug-warning hidden" id="editSlugWarning" style="font-size:12px;color:#e09030;margin-top:6px;line-height:1.4;">Changing your URL will break any existing links to your current page.</div>
-      </div>
-      <div class="field">
-        <label>Publication URL</label>
-        <input type="text" id="editPubUrl" />
-        <div class="hint">Your Substack URL or custom domain</div>
-        <div class="error" id="editPubUrlError" style="margin-top:4px;"></div>
-      </div>
-      <div class="field">
         <label>Publication name</label>
         <input type="text" id="editDisplayName" />
+      </div>
+
+      <div style="margin-bottom:20px;font-size:13px;color:#888;line-height:1.6;">
+        <div style="margin-bottom:4px;">
+          <span style="color:#aaa;">Page URL:</span> stack.pub/<strong id="editSlugDisplay" style="color:#1a1a1a;"></strong>
+          <span class="edit-toggle" id="editSlugToggle" onclick="toggleSlugEdit()" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:6px;font-size:12px;">change</span>
+        </div>
+        <div class="hidden" id="editSlugWrap">
+          <input type="text" id="editSlug" oninput="checkEditSlug()" style="width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-top:6px;" />
+          <div class="slug-preview" id="editSlugPreview" style="margin-top:6px;">stack.pub/<strong></strong></div>
+          <div class="hidden" id="editSlugWarning" style="font-size:12px;color:#e09030;margin-top:6px;line-height:1.4;">Changing your URL will break any existing links to your current page.</div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button onclick="saveSlug()" id="saveSlugBtn" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Save URL</button>
+            <button onclick="cancelSlugEdit()" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Cancel</button>
+          </div>
+          <div class="error" id="editSlugError" style="margin-top:8px;"></div>
+        </div>
+        <div style="margin-top:6px;">
+          <span style="color:#aaa;">Publication:</span> <span id="editPubUrlDisplay" style="color:#555;"></span>
+          <span class="edit-toggle" id="editPubUrlToggle" onclick="togglePubUrlEdit()" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:6px;font-size:12px;">change</span>
+        </div>
+        <div class="hidden" id="editPubUrlWrap">
+          <input type="text" id="editPubUrl" style="width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-top:6px;" />
+          <div class="hint" style="margin-top:4px;">Your Substack URL or custom domain</div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button onclick="savePubUrl()" id="savePubUrlBtn" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Save</button>
+            <button onclick="cancelPubUrlEdit()" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Cancel</button>
+          </div>
+          <div class="error" id="editPubUrlError" style="margin-top:8px;"></div>
+        </div>
       </div>
       <div class="logo-section">
         <label>Logo</label>
@@ -339,11 +357,11 @@
     // Client-side URL validation — matches server-side validatePublicationUrl
     function validatePubUrl(input) {
       const clean = input.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-      if (/^@/.test(clean)) return 'That looks like a username handle. Your publication URL looks like yourname.substack.com or your custom domain.';
-      if (/^substack\.com\/@/.test(clean)) return 'That\'s a Substack profile URL, not a publication URL. Your publication URL looks like yourname.substack.com or your custom domain.';
-      if (/^substack\.com\/profile/.test(clean)) return 'That\'s a Substack profile URL. Your publication URL looks like yourname.substack.com or your custom domain.';
-      if (/^(open\.)?substack\.com(\/.*)?$/.test(clean) && !/^[a-z0-9_-]+\.substack\.com/.test(clean)) return 'Please enter your publication URL, not substack.com. It looks like yourname.substack.com or your custom domain.';
-      if (/^substack\.com\/(home|search|discover|inbox|settings|recommendations)/.test(clean)) return 'That\'s a Substack page, not a publication URL. Try yourname.substack.com or your custom domain.';
+      if (/^@/.test(clean)) return 'That looks like a username handle. Your publication URL should be yourname.substack.com or your custom domain.';
+      if (/^substack\.com\/@/.test(clean)) return 'That\'s your Substack profile page. Your publication URL should be yourname.substack.com or your custom domain.';
+      if (/^substack\.com\/profile/.test(clean)) return 'That\'s your Substack profile page. Your publication URL should be yourname.substack.com or your custom domain.';
+      if (/^(open\.)?substack\.com(\/.*)?$/.test(clean) && !/^[a-z0-9_-]+\.substack\.com/.test(clean)) return 'That\'s the Substack homepage. Your publication URL should be yourname.substack.com or your custom domain.';
+      if (/^substack\.com\/(home|search|discover|inbox|settings|recommendations)/.test(clean)) return 'That\'s a Substack page, not a publication. Your publication URL should be yourname.substack.com or your custom domain.';
       return null;
     }
 
@@ -574,6 +592,8 @@
       document.getElementById('editExclude').checked = p.exclude_no_image;
       document.getElementById('editSlug').value = p.slug;
       document.getElementById('editPubUrl').value = p.publication_url;
+      document.getElementById('editSlugDisplay').textContent = p.slug;
+      document.getElementById('editPubUrlDisplay').textContent = p.publication_url;
       originalSlug = p.slug;
       document.getElementById('editSlugPreview').innerHTML = 'stack.pub/<strong>' + p.slug + '</strong>';
       document.getElementById('pageLink').textContent = 'stack.pub/' + p.slug;
@@ -670,6 +690,101 @@
 
     function toggleLogoUrl() { document.getElementById('logoUrlInput').style.display = 'block'; }
 
+    function toggleSlugEdit() {
+      const wrap = document.getElementById('editSlugWrap');
+      wrap.classList.toggle('hidden');
+      if (!wrap.classList.contains('hidden')) document.getElementById('editSlug').focus();
+    }
+
+    function cancelSlugEdit() {
+      document.getElementById('editSlug').value = originalSlug;
+      document.getElementById('editSlugPreview').innerHTML = 'stack.pub/<strong>' + originalSlug + '</strong>';
+      document.getElementById('editSlugWarning').classList.add('hidden');
+      document.getElementById('editSlugError').style.display = 'none';
+      document.getElementById('editSlugWrap').classList.add('hidden');
+    }
+
+    async function saveSlug() {
+      const btn = document.getElementById('saveSlugBtn');
+      const err = document.getElementById('editSlugError');
+      const slug = document.getElementById('editSlug').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      err.style.display = 'none';
+
+      if (slug.length < 3) { err.textContent = 'URL must be at least 3 characters.'; err.style.display = 'block'; return; }
+      if (slug === originalSlug) { cancelSlugEdit(); return; }
+
+      btn.disabled = true; btn.textContent = 'Saving...';
+      try {
+        const res = await fetch('/api/page', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await getToken() },
+          body: JSON.stringify({ slug })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error);
+
+        // Update all slug references
+        const newSlug = data.page.slug;
+        originalSlug = newSlug;
+        currentPage = data.page;
+        document.getElementById('editSlugDisplay').textContent = newSlug;
+        document.getElementById('editSlug').value = newSlug;
+        document.getElementById('pageLink').textContent = 'stack.pub/' + newSlug;
+        document.getElementById('pageLink').href = '/' + newSlug;
+        document.getElementById('viewAfterSave').href = '/' + newSlug;
+        document.getElementById('savedUrl').textContent = 'stack.pub/' + newSlug;
+        document.getElementById('editSlugPreview').innerHTML = 'stack.pub/<strong>' + newSlug + '</strong>';
+        document.getElementById('editSlugWarning').classList.add('hidden');
+        document.getElementById('editSlugWrap').classList.add('hidden');
+      } catch (e) {
+        err.textContent = e.message; err.style.display = 'block';
+      }
+      btn.disabled = false; btn.textContent = 'Save URL';
+    }
+
+    function togglePubUrlEdit() {
+      const wrap = document.getElementById('editPubUrlWrap');
+      wrap.classList.toggle('hidden');
+      if (!wrap.classList.contains('hidden')) document.getElementById('editPubUrl').focus();
+    }
+
+    function cancelPubUrlEdit() {
+      document.getElementById('editPubUrl').value = currentPage.publication_url;
+      document.getElementById('editPubUrlError').style.display = 'none';
+      document.getElementById('editPubUrlWrap').classList.add('hidden');
+    }
+
+    async function savePubUrl() {
+      const btn = document.getElementById('savePubUrlBtn');
+      const err = document.getElementById('editPubUrlError');
+      const pubUrl = document.getElementById('editPubUrl').value.trim();
+      err.style.display = 'none';
+
+      if (!pubUrl) { err.textContent = 'Please enter a publication URL.'; err.style.display = 'block'; return; }
+      const valErr = validatePubUrl(pubUrl);
+      if (valErr) { err.textContent = valErr; err.style.display = 'block'; return; }
+      if (pubUrl === currentPage.publication_url) { cancelPubUrlEdit(); return; }
+
+      btn.disabled = true; btn.textContent = 'Saving...';
+      try {
+        const res = await fetch('/api/page', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await getToken() },
+          body: JSON.stringify({ publicationUrl: pubUrl })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error);
+
+        currentPage = data.page;
+        document.getElementById('editPubUrlDisplay').textContent = data.page.publication_url;
+        document.getElementById('editPubUrl').value = data.page.publication_url;
+        document.getElementById('editPubUrlWrap').classList.add('hidden');
+      } catch (e) {
+        err.textContent = e.message; err.style.display = 'block';
+      }
+      btn.disabled = false; btn.textContent = 'Save';
+    }
+
     async function removeLogo() {
       const token = await getToken();
       try {
@@ -691,17 +806,6 @@
       err.style.display = 'none'; success.style.display = 'none'; btn.textContent = 'Saving...'; btn.disabled = true;
       const logoUrlField = document.getElementById('logoUrlField').value.trim();
 
-      // Validate pub URL client-side
-      const editPubUrl = document.getElementById('editPubUrl').value.trim();
-      if (editPubUrl) {
-        const pubErr = validatePubUrl(editPubUrl);
-        if (pubErr) { err.textContent = pubErr; err.style.display = 'block'; btn.textContent = 'Save changes'; btn.disabled = false; return; }
-      }
-
-      // Validate slug
-      const editSlugVal = document.getElementById('editSlug').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-      if (editSlugVal.length < 3) { err.textContent = 'Page URL must be at least 3 characters.'; err.style.display = 'block'; btn.textContent = 'Save changes'; btn.disabled = false; return; }
-
       try {
         const body = {
           displayName: document.getElementById('editDisplayName').value.trim(),
@@ -712,12 +816,6 @@
         };
         if (logoUrlField) body.logoUrl = logoUrlField;
 
-        // Include slug if changed
-        if (editSlugVal !== originalSlug) body.slug = editSlugVal;
-
-        // Include publication URL if changed
-        if (editPubUrl && editPubUrl !== currentPage.publication_url) body.publicationUrl = editPubUrl;
-
         const res = await fetch('/api/page', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await getToken() },
@@ -726,18 +824,7 @@
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error);
 
-        // Update UI with new slug if it changed
-        if (data.page) {
-          currentPage = data.page;
-          const newSlug = data.page.slug;
-          originalSlug = newSlug;
-          document.getElementById('pageLink').textContent = 'stack.pub/' + newSlug;
-          document.getElementById('pageLink').href = '/' + newSlug;
-          document.getElementById('viewAfterSave').href = '/' + newSlug;
-          document.getElementById('savedUrl').textContent = 'stack.pub/' + newSlug;
-          document.getElementById('editSlugPreview').innerHTML = 'stack.pub/<strong>' + newSlug + '</strong>';
-          document.getElementById('editSlugWarning').classList.add('hidden');
-        }
+        if (data.page) currentPage = data.page;
 
         btn.textContent = 'Save changes'; btn.disabled = false;
         success.style.display = 'block';
