@@ -885,8 +885,36 @@ app.get('/api/posts/:slug', async (req, res) => {
     // Filter out hidden posts
     let posts = batch.posts.filter(p => !hiddenSlugs.includes(postSlugFromLink(p.link)));
 
-    // On first page, move pinned posts to top
+    // On first page, move pinned posts to top — fetch missing ones individually
     if (offset === 0 && pinnedSlugs.length > 0) {
+      const batchSlugs = posts.map(p => postSlugFromLink(p.link));
+      const missingSlugs = pinnedSlugs.filter(s => !batchSlugs.includes(s));
+
+      // Fetch missing pinned posts from Substack by slug
+      if (missingSlugs.length > 0) {
+        const isCustomDomain = publication.includes('.');
+        const baseUrl = isCustomDomain ? `https://${publication}` : `https://${publication}.substack.com`;
+        const linkBase = isCustomDomain ? `https://${publication}` : baseUrl;
+        for (const pSlug of missingSlugs) {
+          try {
+            const pRes = await fetch(`${baseUrl}/api/v1/posts/${pSlug}`, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' }
+            });
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              if (pData && pData.title && pData.cover_image) {
+                posts.push({
+                  title: pData.title,
+                  link: `${linkBase}/p/${pData.slug}?ref=stackpub`,
+                  img: pData.cover_image,
+                  postType: pData.type || 'newsletter'
+                });
+              }
+            }
+          } catch (e) { /* skip failed fetches */ }
+        }
+      }
+
       const pinned = posts.filter(p => pinnedSlugs.includes(postSlugFromLink(p.link)));
       const rest = posts.filter(p => !pinnedSlugs.includes(postSlugFromLink(p.link)));
       pinned.sort((a, b) => pinnedSlugs.indexOf(postSlugFromLink(a.link)) - pinnedSlugs.indexOf(postSlugFromLink(b.link)));
