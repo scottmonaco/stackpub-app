@@ -366,8 +366,7 @@ async function fetchSubstackFeed(publication) {
 
 // Paginated fetch — accumulates posts across Substack's 12-per-page API
 // Returns { posts, nextOffset, hasMore, name, logo, substackUrl }
-async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, filters = {}) {
-  const { excludeNoImage = true, excludeVideos = true, excludePodcasts = true } = filters;
+async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, excludeNoImage = true) {
   const isCustomDomain = publication.includes('.');
 
   // Build base URL list (same logic as fetchViaAPI)
@@ -418,10 +417,8 @@ async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, f
 
           if (!title) continue;
 
-          // Apply separate filters
-          if (excludeNoImage && !img) continue;
-          if (excludeVideos && postType === 'video') continue;
-          if (excludePodcasts && postType === 'podcast') continue;
+          // Apply filtering inline
+          if (excludeNoImage && (!img || (postType !== 'newsletter' && postType !== 'thread'))) continue;
 
           filteredPosts.push({
             title,
@@ -469,9 +466,7 @@ async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, f
     try {
       const rssFeed = await fetchViaRSS(publication);
       let posts = rssFeed.posts;
-      if (excludeNoImage) posts = posts.filter(p => p.img);
-      if (excludeVideos) posts = posts.filter(p => p.isArticle !== false);
-      if (excludePodcasts) posts = posts.filter(p => p.isArticle !== false);
+      if (excludeNoImage) posts = posts.filter(p => p.img && p.isArticle !== false);
       return {
         posts: posts.slice(0, limit),
         nextOffset: null,
@@ -576,7 +571,7 @@ app.post('/api/claim', requireAuth, async (req, res) => {
 
 // Update page settings (requires auth)
 app.put('/api/page', requireAuth, async (req, res) => {
-  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage, slug, publicationUrl, headerBgColor, headerFont, pinnedPosts, hiddenPosts, excludeVideos, excludePodcasts } = req.body;
+  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage, slug, publicationUrl, headerBgColor, headerFont, pinnedPosts, hiddenPosts } = req.body;
   const updates = {};
   if (displayName !== undefined) updates.display_name = displayName;
   if (textStyle !== undefined) updates.text_style = textStyle;
@@ -584,8 +579,6 @@ app.put('/api/page', requireAuth, async (req, res) => {
   if (colorOverlay !== undefined) updates.color_overlay = colorOverlay;
   if (logoUrl !== undefined) updates.logo_url = logoUrl;
   if (excludeNoImage !== undefined) updates.exclude_no_image = excludeNoImage;
-  if (excludeVideos !== undefined) updates.exclude_videos = excludeVideos;
-  if (excludePodcasts !== undefined) updates.exclude_podcasts = excludePodcasts;
   if (headerBgColor !== undefined) updates.header_bg_color = headerBgColor;
   if (headerFont !== undefined) updates.header_font = headerFont;
   if (pinnedPosts !== undefined) updates.pinned_posts = pinnedPosts;
@@ -660,9 +653,18 @@ app.post('/api/upload-logo', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Invalid image format' });
   }
 
-  const storagePath = `logos/${req.user.id}.${ext}`;
+  const storagePath = `logos/${req.user.id}_${Date.now()}.${ext}`;
   const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
+
+  // Delete any existing logo files for this user
+  try {
+    const { data: existingFiles } = await req.authClient.storage.from('logos').list('', { search: req.user.id });
+    if (existingFiles && existingFiles.length > 0) {
+      const filesToDelete = existingFiles.map(f => f.name);
+      await req.authClient.storage.from('logos').remove(filesToDelete);
+    }
+  } catch (e) { /* ignore cleanup errors */ }
 
   const { data, error } = await req.authClient.storage
     .from('logos')
@@ -878,11 +880,7 @@ app.get('/api/posts/:slug', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 24, 60);
     const offset = parseInt(req.query.offset) || 0;
 
-    const batch = await fetchSubstackBatch(publication, offset, limit, {
-      excludeNoImage: page.exclude_no_image !== false,
-      excludeVideos: page.exclude_videos !== false,
-      excludePodcasts: page.exclude_podcasts !== false
-    });
+    const batch = await fetchSubstackBatch(publication, offset, limit, page.exclude_no_image !== false);
 
     // Filter out hidden posts
     let posts = batch.posts.filter(p => !hiddenSlugs.includes(postSlugFromLink(p.link)));
@@ -1175,9 +1173,9 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
   <link href="https://fonts.googleapis.com/css2?${fonts.import}${headerFontImport}&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #fff; font-family: ${fonts.body}; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-    header { display: flex; flex-direction: column; align-items: center; padding: 44px 24px 22px; gap: 10px; background: ${bgColor}; }
-    .logo { max-width: clamp(160px, 42vw, 280px); max-height: 80px; width: auto; height: auto; display: block; object-fit: contain; }
+    html, body { background: ${bgColor}; font-family: ${fonts.body}; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    header { display: flex; flex-direction: column; align-items: center; padding: 44px 24px 22px; gap: 10px; }
+    .logo { max-width: clamp(160px, 42vw, 280px); max-height: 120px; width: auto; height: auto; display: block; object-fit: contain; }
     .site-name { font-weight: 700; font-size: clamp(24px, 5vw, 36px); letter-spacing: -0.02em; color: ${isDarkColor(bgColor) ? '#fff' : '#1a1a1a'}; text-align: center; ${headerFontCSS} }
     .site-name.sub { font-size: clamp(14px, 3vw, 18px); font-weight: 400; color: ${isDarkColor(bgColor) ? 'rgba(255,255,255,0.6)' : '#888'}; letter-spacing: 0.02em; margin-top: -4px; ${headerFontCSS} }
     .subscribe-btn { display: inline-block; padding: 11px 30px; margin-top: 6px; background: ${isDarkColor(bgColor) ? '#fff' : '#1a1a1a'}; color: ${isDarkColor(bgColor) ? '#1a1a1a' : '#fff'}; font-family: ${fonts.body}; font-weight: 600; font-size: 14px; text-decoration: none; border-radius: 6px; transition: background 0.2s; }
