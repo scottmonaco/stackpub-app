@@ -217,20 +217,6 @@
 
       <div style="margin-bottom:20px;font-size:13px;color:#888;line-height:1.6;">
         <div style="margin-bottom:4px;">
-          <span style="color:#aaa;">Page URL:</span> stack.pub/<strong id="editSlugDisplay" style="color:#1a1a1a;"></strong>
-          <span class="edit-toggle" id="editSlugToggle" onclick="toggleSlugEdit()" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:6px;font-size:12px;">change</span>
-        </div>
-        <div class="hidden" id="editSlugWrap">
-          <input type="text" id="editSlug" oninput="checkEditSlug()" style="width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-top:6px;" />
-          <div class="slug-preview" id="editSlugPreview" style="margin-top:6px;">stack.pub/<strong></strong></div>
-          <div class="hidden" id="editSlugWarning" style="font-size:12px;color:#e09030;margin-top:6px;line-height:1.4;">Changing your URL will break any existing links to your current page.</div>
-          <div style="display:flex;gap:8px;margin-top:10px;">
-            <button onclick="saveSlug()" id="saveSlugBtn" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Save URL</button>
-            <button onclick="cancelSlugEdit()" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Cancel</button>
-          </div>
-          <div class="error" id="editSlugError" style="margin-top:8px;"></div>
-        </div>
-        <div style="margin-top:6px;">
           <span style="color:#aaa;">Publication:</span> <span id="editPubUrlDisplay" style="color:#555;"></span>
           <span class="edit-toggle" id="editPubUrlToggle" onclick="togglePubUrlEdit()" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:6px;font-size:12px;">change</span>
         </div>
@@ -242,6 +228,20 @@
             <button onclick="cancelPubUrlEdit()" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Cancel</button>
           </div>
           <div class="error" id="editPubUrlError" style="margin-top:8px;"></div>
+        </div>
+        <div style="margin-top:6px;">
+          <span style="color:#aaa;">Your link:</span> stack.pub/<strong id="editSlugDisplay" style="color:#1a1a1a;"></strong>
+          <span class="edit-toggle" id="editSlugToggle" onclick="toggleSlugEdit()" style="color:#888;cursor:pointer;text-decoration:underline;margin-left:6px;font-size:12px;">change</span>
+        </div>
+        <div class="hidden" id="editSlugWrap">
+          <input type="text" id="editSlug" oninput="checkEditSlug()" style="width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;margin-top:6px;" />
+          <div class="slug-preview" id="editSlugPreview" style="margin-top:6px;">stack.pub/<strong></strong></div>
+          <div class="hidden" id="editSlugWarning" style="font-size:12px;color:#e09030;margin-top:6px;line-height:1.4;">Changing your URL will break any existing links to your current page.</div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button onclick="saveSlug()" id="saveSlugBtn" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Save</button>
+            <button onclick="cancelSlugEdit()" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Cancel</button>
+          </div>
+          <div class="error" id="editSlugError" style="margin-top:8px;"></div>
         </div>
       </div>
       <div class="logo-section">
