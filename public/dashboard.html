@@ -365,21 +365,6 @@
         </div>
       </div>
 
-      <div class="pin-section">
-        <span class="pin-toggle" onclick="togglePinStrip()">Pin posts to top of your grid</span>
-        <div class="hidden" id="pinWrap">
-          <p style="font-size:11px;color:#aaa;margin:8px 0;">Tap a post to pin it. Tap again to unpin. Up to 6 posts, shown in the order you pick them.</p>
-          <div id="pinLoading" style="font-size:12px;color:#bbb;padding:12px;text-align:center;">Loading posts...</div>
-          <div class="pin-strip hidden" id="pinStrip"></div>
-          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-            <button onclick="savePins()" id="savePinsBtn" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">Save pinned posts</button>
-            <button onclick="clearAllPins()" id="clearPinsBtn" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Remove all</button>
-            <span id="pinCount" style="font-size:11px;color:#aaa;"></span>
-          </div>
-          <div class="error" id="pinError" style="margin-top:6px;"></div>
-        </div>
-      </div>
-
       <div style="margin-bottom:24px;">
         <label class="checkbox-row">
           <input type="checkbox" id="editExclude" />
@@ -399,6 +384,25 @@
       </div>
       <div class="error" id="editError"></div>
 
+      <!-- Pin posts (Pro feature) -->
+      <div class="pin-section" style="margin-top:24px;padding-top:20px;border-top:1px solid #eee;">
+        <div class="editor-label" style="font-size:14px;">Pin Posts to Top <span style="display:inline-block;padding:2px 8px;background:#1a1a1a;color:#fff;font-size:9px;font-weight:700;border-radius:4px;letter-spacing:0.05em;vertical-align:middle;margin-left:6px;">PRO</span></div>
+        <div id="pinProGate" style="font-size:13px;color:#888;line-height:1.5;margin-bottom:12px;">
+          Choose up to 6 posts to feature at the top of your grid. <a onclick="document.getElementById('upgradeCard').scrollIntoView({behavior:'smooth',block:'center'})" style="color:#1a1a1a;font-weight:600;cursor:pointer;text-decoration:underline;">Upgrade to unlock.</a>
+        </div>
+        <div class="hidden" id="pinWrap">
+          <p style="font-size:11px;color:#aaa;margin-bottom:8px;">Tap to pin. Tap again to unpin. Up to 6 posts, in the order you pick them.</p>
+          <div id="pinLoading" style="font-size:12px;color:#bbb;padding:12px;text-align:center;">Loading posts...</div>
+          <div class="pin-strip hidden" id="pinStrip"></div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+            <button onclick="savePins()" id="savePinsBtn" style="padding:8px 20px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">Save pinned posts</button>
+            <button onclick="clearAllPins()" id="clearPinsBtn" style="padding:8px 16px;background:none;color:#888;border:1px solid #e0e0e0;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Remove all</button>
+            <span id="pinCount" style="font-size:11px;color:#aaa;"></span>
+          </div>
+          <div class="error" id="pinError" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
       <!-- Billing: paid users -->
       <div class="billing-card hidden" id="billingCard">
         <div>
@@ -416,6 +420,7 @@
           <span>No watermark on your page</span>
           <span>7 image filters — noir, blur, duotone, and more</span>
           <span>7 color overlays — midnight, light leak, gradient, and more</span>
+          <span>Pin up to 6 posts to the top of your grid</span>
           <span>All future premium features included</span>
         </div>
         <div class="plan-toggle">
@@ -501,9 +506,18 @@
       const preview = document.getElementById('livePreview');
       preview.className = 'live-preview ts-' + chosenTextStyle + ' if-' + chosenFilter + ' co-' + chosenOverlay;
 
-      // Update title text for uppercase styles
+      // Use pinned post content if available, otherwise placeholder
       const titleEl = document.getElementById('previewTitle');
-      titleEl.textContent = uppercaseStyles.includes(chosenTextStyle) ? 'YOUR TITLE HERE' : 'Your title here';
+      let displayTitle = 'Your title here';
+      if (pinnedSlugs && pinnedSlugs.length > 0 && pinPosts && pinPosts.length > 0) {
+        const lastPinned = pinnedSlugs[pinnedSlugs.length - 1];
+        const post = pinPosts.find(p => p.postSlug === lastPinned);
+        if (post) {
+          displayTitle = post.title;
+          document.getElementById('previewImg').src = post.img;
+        }
+      }
+      titleEl.textContent = uppercaseStyles.includes(chosenTextStyle) ? displayTitle.toUpperCase() : displayTitle;
 
       // Update active states on strips
       document.querySelectorAll('#textStrip .thumb-item').forEach(el => el.classList.toggle('active', el.dataset.val === chosenTextStyle));
@@ -517,6 +531,9 @@
       } else if (proNudge) {
         proNudge.style.display = 'none';
       }
+
+      // Re-render pin strip with updated styles if loaded
+      if (pinLoaded) renderPinStrip();
     }
 
     function updateHeaderPreview() {
@@ -731,12 +748,6 @@
     let pinLoaded = false;
     const MAX_PINS = 6;
 
-    function togglePinStrip() {
-      const wrap = document.getElementById('pinWrap');
-      wrap.classList.toggle('hidden');
-      if (!wrap.classList.contains('hidden') && !pinLoaded) loadPinPosts();
-    }
-
     async function loadPinPosts() {
       if (!currentPage) return;
       try {
@@ -757,14 +768,29 @@
       const strip = document.getElementById('pinStrip');
       strip.classList.remove('hidden');
       strip.innerHTML = '';
+
+      // Get current style settings for preview
+      const currentFilter = FILTERS.find(f => f.id === chosenFilter);
+      const currentOverlay = OVERLAYS.find(o => o.id === chosenOverlay);
+      const currentText = TEXT_STYLES.find(t => t.id === chosenTextStyle);
+      const filterCSS = currentFilter ? currentFilter.css : 'brightness(0.7) saturate(0.9)';
+      const overlayBg = currentOverlay ? currentOverlay.bg : '';
+
       pinPosts.forEach(p => {
         const pinIndex = pinnedSlugs.indexOf(p.postSlug);
         const isPinned = pinIndex >= 0;
         const card = document.createElement('div');
         card.className = 'pin-card' + (isPinned ? ' pinned' : '');
+
+        let overlayDiv = overlayBg ? '<div style="position:absolute;inset:0;background:' + overlayBg + ';pointer-events:none;"></div>' : '';
+        let titleText = currentText && uppercaseStyles.includes(chosenTextStyle) ? p.title.toUpperCase() : p.title;
+        let titleFont = currentText ? currentText.font : "'DM Sans', sans-serif";
+        let titleWeight = currentText ? currentText.weight : 400;
+
         card.innerHTML =
-          '<img src="' + p.img + '" alt="" />' +
-          '<div class="pin-title">' + escPH(p.title) + '</div>' +
+          '<img src="' + p.img + '" style="filter:' + filterCSS + ';" alt="" />' +
+          overlayDiv +
+          '<div class="pin-title" style="font-family:' + titleFont + ';font-weight:' + titleWeight + ';">' + escPH(titleText) + '</div>' +
           (isPinned ? '<div class="pin-badge">' + (pinIndex + 1) + '</div>' : '');
         card.onclick = () => { togglePin(p.postSlug); };
         strip.appendChild(card);
@@ -1036,10 +1062,14 @@
 
       initEditor(img);
 
-      // Show upgrade or billing card
+      // Show upgrade or billing card + pin section Pro gate
       if (isPaid) {
         document.getElementById('billingCard').classList.remove('hidden');
         document.getElementById('upgradeCard').classList.add('hidden');
+        // Unlock pin section
+        document.getElementById('pinProGate').style.display = 'none';
+        document.getElementById('pinWrap').classList.remove('hidden');
+        loadPinPosts();
         // Fetch billing details
         try {
           const billingRes = await fetch('/api/billing', { headers: { 'Authorization': 'Bearer ' + await getToken() } });
