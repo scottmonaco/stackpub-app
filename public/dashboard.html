@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — stack.pub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Lora:wght@500;600&family=Sora:wght@500;600;700&family=Newsreader:ital,wght@1,400&family=Bebas+Neue&family=Caveat:wght@500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Lora:wght@500;600&family=Sora:wght@500;600;700&family=Newsreader:ital,wght@1,400&family=Bebas+Neue&family=Caveat:wght@500;700&family=Inter:wght@400;500;600&family=Special+Elite&family=Playfair+Display:wght@700;800&family=Oswald:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { background: #fafaf8; }
@@ -56,54 +56,72 @@
     .logo-url-toggle { font-size: 12px; color: #888; cursor: pointer; margin-top: 4px; text-decoration: underline; display: inline-block; }
     .logo-url-input { display: none; margin-top: 8px; }
 
-    /* Style steps */
-    .style-step { margin-bottom: 22px; }
-    .style-step-label { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
-    .style-step-hint { font-size: 12px; color: #aaa; margin-bottom: 10px; }
-    .style-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    @media (max-width: 540px) {
-      .style-grid {
-        display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
-        gap: 10px; padding-bottom: 8px; -webkit-overflow-scrolling: touch;
-      }
-      .style-grid::-webkit-scrollbar { display: none; }
-      .style-grid .style-option { flex: 0 0 42%; scroll-snap-align: start; }
+    /* Live preview editor */
+    .editor-section { margin-bottom: 24px; }
+    .editor-label { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 16px; }
+    .live-preview-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+    .live-preview {
+      width: 260px; aspect-ratio: 3/4; position: relative; overflow: hidden;
+      container-type: inline-size; background: #1a1a1a; border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
     }
-    .style-option { border: 2px solid #eee; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative; }
-    .style-option:hover { border-color: #ccc; }
-    .style-option.active { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.08); }
-    .style-option .preview { aspect-ratio: 3/4; position: relative; overflow: hidden; container-type: inline-size; background: #1a1a1a; }
-    .style-option .preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .style-option .sname { text-align: center; padding: 6px; font-size: 10px; font-weight: 600; background: #fff; }
+    .live-preview img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.7) saturate(0.9); transition: filter 0.4s ease; }
+    .live-preview .ov { position: absolute; inset: 0; pointer-events: none; transition: all 0.4s ease; }
+    .live-preview .ov span { transition: all 0.4s ease; }
 
-    /* Text style previews */
-    .ts-broadsheet .preview img { filter: brightness(0.7) saturate(0.9); }
-    .ts-broadsheet .ov { position:absolute; inset:0; background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-start; padding:7cqi; }
-    .ts-broadsheet .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
-    .ts-byline .preview img { filter: brightness(0.7) saturate(0.9); }
-    .ts-byline .ov { position:absolute; inset:0; background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); display:flex; align-items:flex-end; justify-content:center; padding:7cqi; text-align:center; }
-    .ts-byline .ov span { font-family:'Newsreader',serif; font-weight:400; font-size:10cqi; font-style:italic; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
-    .ts-billboard .preview img { filter: brightness(0.7) saturate(0.9); }
-    .ts-billboard .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:6cqi; background:rgba(0,0,0,0.15); }
-    .ts-billboard .ov span { font-family:'Bebas Neue',sans-serif; font-size:11cqi; color:rgba(255,255,255,0.7); text-transform:uppercase; line-height:0.92; letter-spacing:0.03em; }
-    .ts-handwritten .preview img { filter: brightness(0.7) saturate(0.9); }
-    .ts-handwritten .ov { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:7cqi; background:rgba(0,0,0,0.15); }
-    .ts-handwritten .ov span { font-family:'Caveat',cursive; font-weight:700; font-size:12cqi; color:#fff; line-height:1.4; text-shadow:0 2px 6px rgba(0,0,0,0.5); }
+    /* Text styles on live preview */
+    .live-preview.ts-broadsheet .ov { display:flex; align-items:flex-start; text-align:left; padding:7cqi; background:linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 50%); }
+    .live-preview.ts-broadsheet .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
+    .live-preview.ts-byline .ov { display:flex; align-items:flex-end; justify-content:center; text-align:center; padding:7cqi; background:linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); }
+    .live-preview.ts-byline .ov span { font-family:'Newsreader',serif; font-weight:400; font-size:10cqi; font-style:italic; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
+    .live-preview.ts-billboard .ov { display:flex; align-items:center; justify-content:center; text-align:center; padding:6cqi; background:rgba(0,0,0,0.15); }
+    .live-preview.ts-billboard .ov span { font-family:'Bebas Neue',sans-serif; font-size:11cqi; color:rgba(255,255,255,0.7); text-transform:uppercase; line-height:0.92; letter-spacing:0.03em; }
+    .live-preview.ts-handwritten .ov { display:flex; align-items:center; justify-content:center; text-align:center; padding:7cqi; background:rgba(0,0,0,0.15); }
+    .live-preview.ts-handwritten .ov span { font-family:'Caveat',cursive; font-weight:700; font-size:12cqi; color:#fff; line-height:1.4; text-shadow:0 2px 6px rgba(0,0,0,0.5); }
+    .live-preview.ts-minimal .ov { display:flex; align-items:flex-end; text-align:left; padding:6cqi; background:linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 40%); }
+    .live-preview.ts-minimal .ov span { font-family:'Inter',sans-serif; font-weight:500; font-size:6.5cqi; color:rgba(255,255,255,0.9); line-height:1.2; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
+    .live-preview.ts-typewriter .ov { display:flex; align-items:center; justify-content:center; text-align:center; padding:8cqi; background:rgba(0,0,0,0.2); }
+    .live-preview.ts-typewriter .ov span { font-family:'Special Elite',monospace; font-weight:400; font-size:8cqi; color:#fff; line-height:1.35; text-shadow:0 2px 4px rgba(0,0,0,0.8); }
+    .live-preview.ts-editorial .ov { display:flex; align-items:flex-start; justify-content:flex-end; text-align:right; padding:7cqi; background:linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 55%); }
+    .live-preview.ts-editorial .ov span { font-family:'Playfair Display',serif; font-weight:700; font-size:9cqi; color:#fff; line-height:1.1; letter-spacing:-0.02em; text-shadow:0 1px 3px rgba(0,0,0,0.7); }
+    .live-preview.ts-stencil .ov { display:flex; align-items:flex-end; justify-content:center; text-align:center; padding:6cqi; background:linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); }
+    .live-preview.ts-stencil .ov span { font-family:'Oswald',sans-serif; font-weight:500; font-size:10cqi; color:#fff; text-transform:uppercase; line-height:1.0; letter-spacing:0.12em; text-shadow:0 2px 6px rgba(0,0,0,0.7); }
+    .live-preview.ts-neon .ov { display:flex; align-items:center; justify-content:center; text-align:center; padding:8cqi; background:rgba(0,0,0,0.3); }
+    .live-preview.ts-neon .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:9cqi; color:#fff; line-height:1.15; text-shadow:0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.2); }
 
-    /* Filter previews */
-    .if-none .preview img { filter: brightness(0.7) saturate(0.9); }
-    .if-vintage .preview img { filter: brightness(0.75) saturate(0.5) sepia(0.4) contrast(1.1); }
-    .if-pop .preview img { filter: brightness(0.8) saturate(1.6) contrast(1.15); }
-    .if-noir .preview img { filter: brightness(0.7) saturate(0) contrast(1.3); }
+    /* Filters on live preview */
+    .live-preview.if-vintage img { filter: brightness(0.75) saturate(0.5) sepia(0.4) contrast(1.1); }
+    .live-preview.if-pop img { filter: brightness(0.8) saturate(1.6) contrast(1.15); }
+    .live-preview.if-noir img { filter: brightness(0.7) saturate(0) contrast(1.3); }
+    .live-preview.if-blur img { filter: brightness(0.7) saturate(0.9) blur(2px); }
+    .live-preview.if-film img { filter: brightness(0.7) saturate(0.4) sepia(0.3) contrast(0.95); }
+    .live-preview.if-faded img { filter: brightness(0.85) saturate(0.6) contrast(0.8); }
+    .live-preview.if-warm img { filter: brightness(0.75) saturate(1.1) sepia(0.15) hue-rotate(-10deg); }
+    .live-preview.if-cool img { filter: brightness(0.75) saturate(0.8) hue-rotate(15deg); }
 
-    /* Overlay previews */
-    .co-none .preview img { filter: brightness(0.7) saturate(0.9); }
-    .co-rose .preview img { filter: brightness(0.7) saturate(0.9); }
-    .co-rose .preview::after { content:''; position:absolute; inset:0; background:rgba(180,60,100,0.35); }
-    .co-ocean .preview img { filter: brightness(0.7) saturate(0.9); }
-    .co-ocean .preview::after { content:''; position:absolute; inset:0; background:rgba(20,60,120,0.4); }
-    .co-gold .preview img { filter: brightness(0.7) saturate(0.9); }
-    .co-gold .preview::after { content:''; position:absolute; inset:0; background:rgba(160,110,20,0.35); }
+    /* Overlays on live preview */
+    .live-preview .color-ov { position:absolute; inset:0; pointer-events:none; transition: background 0.4s ease; }
+    .live-preview.co-rose .color-ov { background:rgba(180,60,100,0.35); }
+    .live-preview.co-ocean .color-ov { background:rgba(20,60,120,0.4); }
+    .live-preview.co-gold .color-ov { background:rgba(160,110,20,0.35); }
+    .live-preview.co-forest .color-ov { background:rgba(30,80,40,0.35); }
+    .live-preview.co-violet .color-ov { background:rgba(80,30,120,0.35); }
+    .live-preview.co-ember .color-ov { background:rgba(180,60,20,0.3); }
+    .live-preview.co-midnight .color-ov { background:rgba(10,15,50,0.45); }
+    .live-preview.co-slate .color-ov { background:rgba(60,70,80,0.35); }
+
+    /* Style dropdowns */
+    .style-controls { display: flex; flex-direction: column; gap: 14px; }
+    .style-control { display: flex; align-items: center; gap: 10px; }
+    .style-control label { font-size: 13px; font-weight: 600; color: #555; min-width: 80px; flex-shrink: 0; }
+    .style-control select {
+      flex: 1; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 10px;
+      font-size: 14px; font-family: 'DM Sans', sans-serif; color: #1a1a1a;
+      background: #fafafa; outline: none; cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+    }
+    .style-control select:focus { border-color: #1a1a1a; background-color: #fff; }
 
     .checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 24px; cursor: pointer; user-select: none; }
     .checkbox-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #1a1a1a; cursor: pointer; }
@@ -263,22 +281,83 @@
         <p class="hint" style="margin-top:6px;">No logo? Your publication name will be displayed as the header.</p>
       </div>
 
-      <div class="style-step">
-        <div class="style-step-label">Text style</div>
-        <div class="style-step-hint">Where and how your article title appears on each card.</div>
-        <div class="style-grid" id="editTextGrid"></div>
+      <div class="editor-section">
+        <div class="editor-label">Design your card</div>
+        <div class="live-preview-wrap">
+          <div class="live-preview ts-broadsheet if-none co-none" id="livePreview">
+            <img id="previewImg" src="/stackpup-sample.jpg" alt="" />
+            <div class="color-ov"></div>
+            <div class="ov"><span id="previewTitle">Your title here</span></div>
+          </div>
+        </div>
+        <div class="style-controls">
+          <div class="style-control">
+            <label>Text style</label>
+            <select id="selectTextStyle" onchange="updatePreview()">
+              <option value="broadsheet">Broadsheet</option>
+              <option value="byline">Byline</option>
+              <option value="billboard">Billboard</option>
+              <option value="handwritten">Handwritten</option>
+              <option value="minimal">Minimal</option>
+              <option value="typewriter">Typewriter</option>
+              <option value="editorial">Editorial</option>
+              <option value="stencil">Stencil</option>
+              <option value="neon">Neon</option>
+            </select>
+          </div>
+          <div class="style-control">
+            <label>Filter</label>
+            <select id="selectFilter" onchange="updatePreview()">
+              <option value="none">None</option>
+              <option value="vintage">Vintage</option>
+              <option value="faded">Faded</option>
+              <option value="pop">Pop (Pro)</option>
+              <option value="noir">Noir (Pro)</option>
+              <option value="blur">Blur (Pro)</option>
+              <option value="film">Film (Pro)</option>
+              <option value="warm">Warm (Pro)</option>
+              <option value="cool">Cool (Pro)</option>
+            </select>
+          </div>
+          <div class="style-control">
+            <label>Overlay</label>
+            <select id="selectOverlay" onchange="updatePreview()">
+              <option value="none">None</option>
+              <option value="rose">Rose</option>
+              <option value="ocean">Ocean</option>
+              <option value="gold">Gold (Pro)</option>
+              <option value="forest">Forest (Pro)</option>
+              <option value="violet">Violet (Pro)</option>
+              <option value="ember">Ember (Pro)</option>
+              <option value="midnight">Midnight (Pro)</option>
+              <option value="slate">Slate (Pro)</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div class="style-step">
-        <div class="style-step-label">Image filter <span class="pro-badge">PRO</span></div>
-        <div class="style-step-hint">Change how your photos look. Leave on None for the default.</div>
-        <div class="style-grid" id="editFilterGrid"></div>
-      </div>
-
-      <div class="style-step">
-        <div class="style-step-label">Color overlay <span class="pro-badge">PRO</span></div>
-        <div class="style-step-hint">Add a color tint that fades on hover to reveal the original photo.</div>
-        <div class="style-grid" id="editOverlayGrid"></div>
+      <div class="editor-section">
+        <div class="editor-label">Header</div>
+        <div class="style-controls">
+          <div class="style-control">
+            <label>Background</label>
+            <div id="colorPalette" style="display:flex;gap:8px;flex-wrap:wrap;flex:1;">
+            </div>
+          </div>
+          <div class="style-control">
+            <label>Title font</label>
+            <select id="selectHeaderFont" onchange="updateHeaderFont()">
+              <option value="">Default</option>
+              <option value="Inter">Inter</option>
+              <option value="Playfair Display">Playfair Display</option>
+              <option value="Lora">Lora</option>
+              <option value="Oswald">Oswald</option>
+              <option value="Sora">Sora</option>
+              <option value="Special Elite">Special Elite</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint" style="margin-top:8px;">Only applies when you don't have a logo. Changes the area above your grid.</p>
       </div>
 
       <label class="checkbox-row">
@@ -286,6 +365,11 @@
         <span>Hide videos, podcasts, and imageless posts</span>
       </label>
       <button class="btn" id="saveBtn" onclick="savePage()">Save changes</button>
+      <div id="proNudge" style="display:none;margin-top:14px;padding:16px 20px;background:#fdf8ef;border:1px solid #f0e4c8;border-radius:10px;text-align:center;line-height:1.6;">
+        <p style="font-size:14px;color:#8a6d2b;font-weight:600;margin-bottom:4px;">This design uses Pro styles</p>
+        <p style="font-size:13px;color:#a08540;margin-bottom:10px;">Upgrade to publish this look, or choose from any of our free combinations.</p>
+        <a onclick="document.getElementById('upgradeCard').scrollIntoView({behavior:'smooth',block:'center'})" style="font-size:13px;color:#1a1a1a;font-weight:600;cursor:pointer;text-decoration:underline;">Upgrade to Pro</a>
+      </div>
       <div class="save-success" id="saveSuccess">
         <p>Changes saved!</p>
         <p style="font-size:13px;color:#666;margin-bottom:10px;">Your page is live at <strong id="savedUrl"></strong></p>
@@ -308,9 +392,9 @@
         <p>Remove the stack.pub watermark and unlock premium styles.</p>
         <div class="features">
           <span>No watermark on your page</span>
-          <span>Image filters — vintage, pop, noir</span>
-          <span>Color overlays — rose, ocean, gold</span>
-          <span>Future premium features included</span>
+          <span>8 image filters — blur, film, faded, and more</span>
+          <span>8 color overlays — forest, midnight, ember, and more</span>
+          <span>All future premium features included</span>
         </div>
         <div class="plan-toggle">
           <button class="plan-btn active" id="planMonthly" onclick="selectPlan('monthly')">
@@ -351,8 +435,22 @@
     let selectedPlan = 'monthly';
     let originalSlug = '';
     let editSlugTimeout = null;
+    let chosenHeaderBg = '#ffffff';
+    let chosenHeaderFont = '';
 
     const DEFAULT_IMG = '/stackpup-sample.jpg';
+
+    const HEADER_COLORS = [
+      { value: '#ffffff', label: 'White' },
+      { value: '#fafaf8', label: 'Cream' },
+      { value: '#f5f0e8', label: 'Warm' },
+      { value: '#1a1a1a', label: 'Black' },
+      { value: '#2c2c2c', label: 'Charcoal' },
+      { value: '#1a2744', label: 'Navy' },
+      { value: '#2d3e2f', label: 'Forest' },
+      { value: '#3b2030', label: 'Wine' },
+      { value: '#f0e6d3', label: 'Sand' },
+    ];
 
     // Client-side URL validation — matches server-side validatePublicationUrl
     function validatePubUrl(input) {
@@ -365,54 +463,78 @@
       return null;
     }
 
-    function makeOption(id, name, cls, gridId, imgSrc, ovHTML, isProOption) {
-      const div = document.createElement('div');
-      const locked = isProOption && !isPaid;
-      div.className = 'style-option ' + cls + (locked ? ' locked' : '');
-      div.dataset.id = id;
-      div.dataset.pro = isProOption ? '1' : '0';
-      div.innerHTML = '<div class="preview"><img src="' + imgSrc + '" alt="" />' + (ovHTML || '') + '</div><div class="sname">' + name + '</div>';
-      div.onclick = () => selectOption(gridId, id);
-      document.getElementById(gridId).appendChild(div);
+    // Free vs Pro split
+    const freeFilters = ['none', 'vintage', 'faded'];
+    const freeOverlays = ['none', 'rose', 'ocean'];
+    const uppercaseStyles = ['billboard', 'stencil'];
+
+    function comboUsesPro() {
+      if (!freeFilters.includes(chosenFilter)) return true;
+      if (!freeOverlays.includes(chosenOverlay)) return true;
+      return false;
     }
 
-    function selectOption(gridId, id) {
-      // Check if this is a locked pro option
-      const grid = document.getElementById(gridId);
-      const option = grid.querySelector('[data-id="' + id + '"]');
-      if (option && option.classList.contains('locked')) {
-        // Scroll to upgrade card
-        document.getElementById('upgradeCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        document.getElementById('upgradeCard').style.boxShadow = '0 0 0 3px rgba(26,26,26,0.15)';
-        setTimeout(() => { document.getElementById('upgradeCard').style.boxShadow = ''; }, 1500);
-        return;
+    function updatePreview() {
+      const textVal = document.getElementById('selectTextStyle').value;
+      const filterVal = document.getElementById('selectFilter').value;
+      const overlayVal = document.getElementById('selectOverlay').value;
+
+      chosenTextStyle = textVal;
+      chosenFilter = filterVal;
+      chosenOverlay = overlayVal;
+
+      // Update preview card classes — no gating, let them see everything
+      const preview = document.getElementById('livePreview');
+      preview.className = 'live-preview ts-' + textVal + ' if-' + filterVal + ' co-' + overlayVal;
+
+      // Update title text for uppercase styles
+      const titleEl = document.getElementById('previewTitle');
+      titleEl.textContent = uppercaseStyles.includes(textVal) ? 'YOUR TITLE HERE' : 'Your title here';
+
+      // Show/hide pro nudge near save button
+      const proNudge = document.getElementById('proNudge');
+      if (proNudge && !isPaid && comboUsesPro()) {
+        proNudge.style.display = 'block';
+      } else if (proNudge) {
+        proNudge.style.display = 'none';
       }
-      grid.querySelectorAll('.style-option').forEach(el => el.classList.toggle('active', el.dataset.id === id));
-      if (gridId.includes('Text')) chosenTextStyle = id;
-      if (gridId.includes('Filter')) chosenFilter = id;
-      if (gridId.includes('Overlay')) chosenOverlay = id;
     }
 
-    function buildTextGrid(gridId, active, img) {
-      makeOption('broadsheet', 'Broadsheet', 'ts-broadsheet', gridId, img, '<div class="ov"><span>Your title</span></div>', false);
-      makeOption('byline', 'Byline', 'ts-byline', gridId, img, '<div class="ov"><span>Your title</span></div>', false);
-      makeOption('billboard', 'Billboard', 'ts-billboard', gridId, img, '<div class="ov"><span>YOUR TITLE</span></div>', false);
-      makeOption('handwritten', 'Handwritten', 'ts-handwritten', gridId, img, '<div class="ov"><span>Your title</span></div>', false);
-      selectOption(gridId, active);
+    function updateHeaderFont() {
+      chosenHeaderFont = document.getElementById('selectHeaderFont').value;
     }
-    function buildFilterGrid(gridId, active, img) {
-      makeOption('none', 'None', 'if-none', gridId, img, '', false);
-      makeOption('vintage', 'Vintage', 'if-vintage', gridId, img, '', true);
-      makeOption('pop', 'Pop', 'if-pop', gridId, img, '', true);
-      makeOption('noir', 'Noir', 'if-noir', gridId, img, '', true);
-      selectOption(gridId, active);
+
+    function buildColorPalette() {
+      const container = document.getElementById('colorPalette');
+      container.innerHTML = '';
+      HEADER_COLORS.forEach(c => {
+        const swatch = document.createElement('div');
+        swatch.title = c.label;
+        swatch.style.cssText = 'width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid ' + (c.value === chosenHeaderBg ? '#1a1a1a' : '#e0e0e0') + ';background:' + c.value + ';transition:border-color 0.2s;flex-shrink:0;';
+        swatch.onclick = () => {
+          chosenHeaderBg = c.value;
+          buildColorPalette();
+        };
+        container.appendChild(swatch);
+      });
     }
-    function buildOverlayGrid(gridId, active, img) {
-      makeOption('none', 'None', 'co-none', gridId, img, '', false);
-      makeOption('rose', 'Rose', 'co-rose', gridId, img, '', true);
-      makeOption('ocean', 'Ocean', 'co-ocean', gridId, img, '', true);
-      makeOption('gold', 'Gold', 'co-gold', gridId, img, '', true);
-      selectOption(gridId, active);
+
+    function initEditor(img) {
+      if (img) document.getElementById('previewImg').src = img;
+      document.getElementById('selectTextStyle').value = chosenTextStyle;
+      document.getElementById('selectFilter').value = chosenFilter;
+      document.getElementById('selectOverlay').value = chosenOverlay;
+      document.getElementById('selectHeaderFont').value = chosenHeaderFont;
+
+      // Hide "(Pro)" labels from dropdowns if paid
+      if (isPaid) {
+        document.querySelectorAll('#selectFilter option, #selectOverlay option').forEach(opt => {
+          opt.textContent = opt.textContent.replace(' (Pro)', '');
+        });
+      }
+
+      buildColorPalette();
+      updatePreview();
     }
 
     async function init() {
@@ -610,6 +732,8 @@
       chosenTextStyle = p.text_style || 'broadsheet';
       chosenFilter = p.image_filter || 'none';
       chosenOverlay = p.color_overlay || 'none';
+      chosenHeaderBg = p.header_bg_color || '#ffffff';
+      chosenHeaderFont = p.header_font || '';
 
       let img = DEFAULT_IMG;
       try {
@@ -620,15 +744,12 @@
         }
       } catch (e) {}
 
-      buildTextGrid('editTextGrid', chosenTextStyle, img);
-      buildFilterGrid('editFilterGrid', chosenFilter, img);
-      buildOverlayGrid('editOverlayGrid', chosenOverlay, img);
+      initEditor(img);
 
       // Show upgrade or billing card
       if (isPaid) {
         document.getElementById('billingCard').classList.remove('hidden');
         document.getElementById('upgradeCard').classList.add('hidden');
-        document.querySelectorAll('.pro-badge').forEach(b => b.style.display = 'none');
         // Fetch billing details
         try {
           const billingRes = await fetch('/api/billing', { headers: { 'Authorization': 'Bearer ' + await getToken() } });
@@ -803,7 +924,16 @@
 
     async function savePage() {
       const btn = document.getElementById('saveBtn'), err = document.getElementById('editError'), success = document.getElementById('saveSuccess');
-      err.style.display = 'none'; success.style.display = 'none'; btn.textContent = 'Saving...'; btn.disabled = true;
+      err.style.display = 'none'; success.style.display = 'none'; document.getElementById('proNudge').style.display = 'none'; btn.textContent = 'Saving...'; btn.disabled = true;
+
+      // Block save if free user has Pro styles selected
+      if (!isPaid && comboUsesPro()) {
+        btn.textContent = 'Save changes'; btn.disabled = false;
+        document.getElementById('proNudge').style.display = 'block';
+        document.getElementById('proNudge').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
       const logoUrlField = document.getElementById('logoUrlField').value.trim();
 
       try {
@@ -812,7 +942,9 @@
           textStyle: chosenTextStyle,
           imageFilter: chosenFilter,
           colorOverlay: chosenOverlay,
-          excludeNoImage: document.getElementById('editExclude').checked
+          excludeNoImage: document.getElementById('editExclude').checked,
+          headerBgColor: chosenHeaderBg,
+          headerFont: chosenHeaderFont
         };
         if (logoUrlField) body.logoUrl = logoUrlField;
 
