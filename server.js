@@ -357,7 +357,7 @@ async function fetchSubstackFeed(publication) {
   return await fetchViaRSS(publication);
 }
 
-// Paginated fetch — gets a single batch from Substack API
+// Paginated fetch — accumulates posts across Substack's 12-per-page API
 // Returns { posts, nextOffset, hasMore, name, logo, substackUrl }
 async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, excludeNoImage = true) {
   const isCustomDomain = publication.includes('.');
@@ -372,51 +372,66 @@ async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, e
     baseUrls.push(`https://${publication}.substack.com`);
   }
 
-  // Overfetch to handle filtering (fetch 2x what we need)
-  const fetchLimit = excludeNoImage ? limit * 3 : limit + 6;
+  const SUBSTACK_PAGE_SIZE = 12; // Substack's actual per-request cap
 
   let lastError;
   for (const baseUrl of baseUrls) {
     try {
-      const url = `${baseUrl}/api/v1/archive?sort=new&search=&offset=${substackOffset}&limit=${fetchLimit}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
-        signal: controller.signal,
-        redirect: 'follow'
-      });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) throw new Error(`API returned ${res.status}`);
-      const data = await res.json();
-      if (!Array.isArray(data)) throw new Error('Non-array response');
-
       const linkBase = isCustomDomain ? `https://${publication}` : baseUrl;
+      let filteredPosts = [];
+      let currentOffset = substackOffset;
+      let substackHasMore = true;
 
-      let allPosts = data.map(post => {
-        const title = post.title || '';
-        const slug = post.slug || '';
-        const link = `${linkBase}/p/${slug}?ref=stackpub`;
-        const img = post.cover_image || '';
-        const postType = post.type || 'newsletter';
-        const isArticle = (postType === 'newsletter' || postType === 'thread');
-        return { title, link, img, isArticle };
-      }).filter(p => p.title);
+      // Keep fetching 12-post pages from Substack until we have enough filtered posts
+      while (filteredPosts.length < limit && substackHasMore) {
+        const url = `${baseUrl}/api/v1/archive?sort=new&search=&offset=${currentOffset}&limit=${SUBSTACK_PAGE_SIZE}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      // Apply filtering
-      if (excludeNoImage) {
-        allPosts = allPosts.filter(p => p.img && p.isArticle !== false);
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; stackpub/1.0)' },
+          signal: controller.signal,
+          redirect: 'follow'
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) throw new Error(`API returned ${res.status}`);
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error('Non-array response');
+
+        // No more posts from Substack
+        if (data.length === 0) { substackHasMore = false; break; }
+
+        for (const post of data) {
+          const title = post.title || '';
+          const slug = post.slug || '';
+          const img = post.cover_image || '';
+          const postType = post.type || 'newsletter';
+          const isArticle = (postType === 'newsletter' || postType === 'thread');
+
+          if (!title) continue;
+
+          // Apply filtering inline
+          if (excludeNoImage && (!img || isArticle === false)) continue;
+
+          filteredPosts.push({
+            title,
+            link: `${linkBase}/p/${slug}?ref=stackpub`,
+            img,
+            isArticle
+          });
+        }
+
+        currentOffset += data.length;
+
+        // If Substack returned fewer than a full page, we've hit the end
+        if (data.length < SUBSTACK_PAGE_SIZE) { substackHasMore = false; }
       }
 
-      // How many raw posts did Substack return?
-      const rawCount = data.length;
-      const hasMore = rawCount >= fetchLimit; // Substack returned a full page, so there's probably more
-      const nextOffset = substackOffset + rawCount;
-
       // Trim to requested limit
-      const posts = allPosts.slice(0, limit);
+      const posts = filteredPosts.slice(0, limit);
+      const hasMore = substackHasMore || filteredPosts.length > limit;
+      const nextOffset = currentOffset;
 
       // Get publication metadata on first call
       let name = publication, logo = '', substackUrl = isCustomDomain ? `https://${publication}` : baseUrl;
