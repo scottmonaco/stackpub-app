@@ -366,7 +366,8 @@ async function fetchSubstackFeed(publication) {
 
 // Paginated fetch — accumulates posts across Substack's 12-per-page API
 // Returns { posts, nextOffset, hasMore, name, logo, substackUrl }
-async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, excludeNoImage = true) {
+async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, filters = {}) {
+  const { excludeNoImage = true, excludeVideos = true, excludePodcasts = true } = filters;
   const isCustomDomain = publication.includes('.');
 
   // Build base URL list (same logic as fetchViaAPI)
@@ -414,18 +415,19 @@ async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, e
           const slug = post.slug || '';
           const img = post.cover_image || '';
           const postType = post.type || 'newsletter';
-          const isArticle = (postType === 'newsletter' || postType === 'thread');
 
           if (!title) continue;
 
-          // Apply filtering inline
-          if (excludeNoImage && (!img || isArticle === false)) continue;
+          // Apply separate filters
+          if (excludeNoImage && !img) continue;
+          if (excludeVideos && postType === 'video') continue;
+          if (excludePodcasts && postType === 'podcast') continue;
 
           filteredPosts.push({
             title,
             link: `${linkBase}/p/${slug}?ref=stackpub`,
             img,
-            isArticle
+            postType
           });
         }
 
@@ -467,7 +469,9 @@ async function fetchSubstackBatch(publication, substackOffset = 0, limit = 24, e
     try {
       const rssFeed = await fetchViaRSS(publication);
       let posts = rssFeed.posts;
-      if (excludeNoImage) posts = posts.filter(p => p.img && p.isArticle !== false);
+      if (excludeNoImage) posts = posts.filter(p => p.img);
+      if (excludeVideos) posts = posts.filter(p => p.isArticle !== false);
+      if (excludePodcasts) posts = posts.filter(p => p.isArticle !== false);
       return {
         posts: posts.slice(0, limit),
         nextOffset: null,
@@ -572,7 +576,7 @@ app.post('/api/claim', requireAuth, async (req, res) => {
 
 // Update page settings (requires auth)
 app.put('/api/page', requireAuth, async (req, res) => {
-  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage, slug, publicationUrl, headerBgColor, headerFont } = req.body;
+  const { displayName, textStyle, imageFilter, colorOverlay, logoUrl, excludeNoImage, slug, publicationUrl, headerBgColor, headerFont, pinnedPosts, hiddenPosts, excludeVideos, excludePodcasts } = req.body;
   const updates = {};
   if (displayName !== undefined) updates.display_name = displayName;
   if (textStyle !== undefined) updates.text_style = textStyle;
@@ -580,8 +584,12 @@ app.put('/api/page', requireAuth, async (req, res) => {
   if (colorOverlay !== undefined) updates.color_overlay = colorOverlay;
   if (logoUrl !== undefined) updates.logo_url = logoUrl;
   if (excludeNoImage !== undefined) updates.exclude_no_image = excludeNoImage;
+  if (excludeVideos !== undefined) updates.exclude_videos = excludeVideos;
+  if (excludePodcasts !== undefined) updates.exclude_podcasts = excludePodcasts;
   if (headerBgColor !== undefined) updates.header_bg_color = headerBgColor;
   if (headerFont !== undefined) updates.header_font = headerFont;
+  if (pinnedPosts !== undefined) updates.pinned_posts = pinnedPosts;
+  if (hiddenPosts !== undefined) updates.hidden_posts = hiddenPosts;
 
   // Handle slug change
   if (slug !== undefined) {
@@ -820,14 +828,25 @@ app.get('/coming-soon', (req, res) => {
 });
 
 // ─── Posts API (for client-side loading) ─────────────────────────────────────
+
+// Extract post slug from a link like https://pub.substack.com/p/my-post?ref=stackpub
+function postSlugFromLink(link) {
+  const match = (link || '').match(/\/p\/([^?/]+)/);
+  return match ? match[1] : '';
+}
+
 app.get('/api/posts/:slug', async (req, res) => {
   const slug = req.params.slug.toLowerCase();
   const preview = req.query.preview === '1';
+  const manage = req.query.manage === '1';
   const { data: page } = await supabase.from('pages')
     .select('*').eq('slug', slug).single();
   if (!page) return res.status(404).json({ error: 'Page not found' });
 
   const publication = parseSubstackUrl(page.publication_url);
+  const pinnedSlugs = page.pinned_posts || [];
+  const hiddenSlugs = page.hidden_posts || [];
+
   try {
     if (preview) {
       // Dashboard preview — only fetch first batch for preview images
@@ -845,18 +864,42 @@ app.get('/api/posts/:slug', async (req, res) => {
       return res.json({ posts, substackUrl: page.publication_url, postCount: posts.length });
     }
 
+    if (manage) {
+      // Dashboard management — fetch all posts with slugs and pin/hide status
+      const feed = await fetchSubstackFeed(publication);
+      const posts = feed.posts.map(p => {
+        const pSlug = postSlugFromLink(p.link);
+        return { ...p, postSlug: pSlug, pinned: pinnedSlugs.includes(pSlug), hidden: hiddenSlugs.includes(pSlug) };
+      });
+      return res.json({ posts, pinnedPosts: pinnedSlugs, hiddenPosts: hiddenSlugs });
+    }
+
     // Paginated fetch for portfolio pages
     const limit = Math.min(parseInt(req.query.limit) || 24, 60);
     const offset = parseInt(req.query.offset) || 0;
-    const excludeNoImage = page.exclude_no_image;
 
-    const batch = await fetchSubstackBatch(publication, offset, limit, excludeNoImage);
+    const batch = await fetchSubstackBatch(publication, offset, limit, {
+      excludeNoImage: page.exclude_no_image !== false,
+      excludeVideos: page.exclude_videos !== false,
+      excludePodcasts: page.exclude_podcasts !== false
+    });
+
+    // Filter out hidden posts
+    let posts = batch.posts.filter(p => !hiddenSlugs.includes(postSlugFromLink(p.link)));
+
+    // On first page, move pinned posts to top
+    if (offset === 0 && pinnedSlugs.length > 0) {
+      const pinned = posts.filter(p => pinnedSlugs.includes(postSlugFromLink(p.link)));
+      const rest = posts.filter(p => !pinnedSlugs.includes(postSlugFromLink(p.link)));
+      pinned.sort((a, b) => pinnedSlugs.indexOf(postSlugFromLink(a.link)) - pinnedSlugs.indexOf(postSlugFromLink(b.link)));
+      posts = [...pinned, ...rest];
+    }
 
     res.json({
-      posts: batch.posts,
+      posts,
       substackUrl: batch.substackUrl || page.publication_url,
       logo: page.logo_url || batch.logo || '',
-      postCount: batch.posts.length,
+      postCount: posts.length,
       hasMore: batch.hasMore,
       nextOffset: batch.nextOffset
     });
