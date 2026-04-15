@@ -505,9 +505,10 @@
       const preview = document.getElementById('livePreview');
       preview.className = 'live-preview ts-' + chosenTextStyle + ' if-' + chosenFilter + ' co-' + chosenOverlay;
 
-      // Use placeholder title (main preview stays on original post image)
+      // Use real post title if available
       const titleEl = document.getElementById('previewTitle');
-      titleEl.textContent = uppercaseStyles.includes(chosenTextStyle) ? 'YOUR TITLE HERE' : 'Your title here';
+      const displayTitle = previewPostTitle || 'Your title here';
+      titleEl.textContent = uppercaseStyles.includes(chosenTextStyle) ? displayTitle.toUpperCase() : displayTitle;
 
       // Update active states on strips
       document.querySelectorAll('#textStrip .thumb-item').forEach(el => el.classList.toggle('active', el.dataset.val === chosenTextStyle));
@@ -693,8 +694,11 @@
       });
     }
 
-    function initEditor(img) {
+    let previewPostTitle = '';
+
+    function initEditor(img, postTitle) {
       if (img) document.getElementById('previewImg').src = img;
+      if (postTitle) previewPostTitle = postTitle;
 
       // Build visual strips
       buildTextStrip();
@@ -1018,15 +1022,19 @@
       chosenHeaderFont = p.header_font || 'Inter';
 
       let img = DEFAULT_IMG;
+      let firstPostTitle = '';
       try {
         const res = await fetch('/api/posts/' + p.slug + '?preview=1');
         if (res.ok) {
           const data = await res.json();
-          if (data.posts && data.posts.length > 0 && data.posts[0].img) img = data.posts[0].img;
+          if (data.posts && data.posts.length > 0) {
+            if (data.posts[0].img) img = data.posts[0].img;
+            if (data.posts[0].title) firstPostTitle = data.posts[0].title;
+          }
         }
       } catch (e) {}
 
-      initEditor(img);
+      initEditor(img, firstPostTitle);
 
       // Unlock pin section for paid users (independent of billing)
       if (isPaid) {
