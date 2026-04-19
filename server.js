@@ -74,6 +74,8 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
             console.log('GA4 purchase event failed:', gaErr.message);
           }
         }
+      }
+    }
 
     if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
       const subscription = event.data.object;
