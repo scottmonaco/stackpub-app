@@ -1192,6 +1192,14 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MJV7C64XDL"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-MJV7C64XDL');
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${esc(displayName)}</title>
@@ -1553,7 +1561,13 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
         });
         if (error) throw error;
 
-        // Success — redirect to dashboard with pub URL
+        // Only fire sign_up for genuinely new accounts (created within last 2 minutes)
+        if (data.user && data.user.created_at) {
+          var createdAt = new Date(data.user.created_at).getTime();
+          if (Date.now() - createdAt < 120000) {
+            gtag('event', 'sign_up', { method: 'email' });
+          }
+        }
         window.location.href = '/dashboard?pub=' + encodeURIComponent(spPubUrlValue);
       } catch (e) {
         spShowError('spError3', 'Invalid code. Please try again.');
