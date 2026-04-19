@@ -1096,7 +1096,7 @@
             currency: 'USD',
             items: [{ item_name: selectedPlan === 'annual' ? 'Pro Annual' : 'Pro Monthly' }]
           });
-          window.location.href = data.url;
+          setTimeout(function() { window.location.href = data.url; }, 300);
         } else {
           throw new Error(data.error || 'Could not start checkout');
         }
