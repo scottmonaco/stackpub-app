@@ -185,7 +185,7 @@
           gtag('event', 'sign_up', { method: 'email' });
         }
       }
-      window.location.href = '/dashboard';
+      setTimeout(function() { window.location.href = '/dashboard'; }, 300);
     }
 
     async function resendCode() {
