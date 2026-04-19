@@ -1091,6 +1091,11 @@
         });
         const data = await res.json();
         if (data.url) {
+          gtag('event', 'begin_checkout', {
+            value: selectedPlan === 'annual' ? 39 : 5,
+            currency: 'USD',
+            items: [{ item_name: selectedPlan === 'annual' ? 'Pro Annual' : 'Pro Monthly' }]
+          });
           window.location.href = data.url;
         } else {
           throw new Error(data.error || 'Could not start checkout');
