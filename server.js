@@ -45,8 +45,35 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
           updated_at: new Date().toISOString()
         }).eq('user_id', userId);
         console.log('Activated paid for user:', userId);
-      }
-    }
+
+        // Fire GA4 purchase event via Measurement Protocol
+        const ga4MeasurementId = process.env.GA4_MEASUREMENT_ID;
+        const ga4ApiSecret = process.env.GA4_API_SECRET;
+        if (ga4MeasurementId && ga4ApiSecret) {
+          try {
+            const amount = session.amount_total ? session.amount_total / 100 : 0;
+            const planInterval = session.metadata?.slug ? 'subscription' : 'one_time';
+            await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${ga4MeasurementId}&api_secret=${ga4ApiSecret}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                client_id: userId,
+                events: [{
+                  name: 'purchase',
+                  params: {
+                    transaction_id: session.payment_intent || session.id,
+                    value: amount,
+                    currency: (session.currency || 'usd').toUpperCase(),
+                    items: [{ item_name: 'stack.pub Pro', price: amount, quantity: 1 }]
+                  }
+                }]
+              })
+            });
+            console.log('GA4 purchase event sent for user:', userId, 'amount:', amount);
+          } catch (gaErr) {
+            console.log('GA4 purchase event failed:', gaErr.message);
+          }
+        }
 
     if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
       const subscription = event.data.object;
