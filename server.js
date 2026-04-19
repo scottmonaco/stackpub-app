@@ -1597,7 +1597,7 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
             gtag('event', 'sign_up', { method: 'email' });
           }
         }
-        window.location.href = '/dashboard?pub=' + encodeURIComponent(spPubUrlValue);
+        setTimeout(function() { window.location.href = '/dashboard?pub=' + encodeURIComponent(spPubUrlValue); }, 300);
       } catch (e) {
         spShowError('spError3', 'Invalid code. Please try again.');
         btn.disabled = false; btn.textContent = 'Verify';
