@@ -170,13 +170,20 @@
       const token = getOtp();
       if (token.length !== 6) return;
       verifyBtn.disabled = true; verifyBtn.textContent = 'Verifying...';
-      const { error } = await sb.auth.verifyOtp({ email: userEmail, token, type: 'email' });
+      const { data, error } = await sb.auth.verifyOtp({ email: userEmail, token, type: 'email' });
       if (error) {
         showError('otp-error', 'Invalid code. Please try again.');
         verifyBtn.disabled = false; verifyBtn.textContent = 'Verify';
         otpInputs.forEach(i => i.value = '');
         otpInputs[0].focus();
         return;
+      }
+      // Only fire sign_up for genuinely new accounts (created within last 2 minutes)
+      if (data.user && data.user.created_at) {
+        const createdAt = new Date(data.user.created_at).getTime();
+        if (Date.now() - createdAt < 120000) {
+          gtag('event', 'sign_up', { method: 'email' });
+        }
       }
       window.location.href = '/dashboard';
     }
