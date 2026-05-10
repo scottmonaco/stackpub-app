@@ -1,14 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MJV7C64XDL"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-MJV7C64XDL');
-</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — stack.pub</title>
@@ -80,6 +72,8 @@
     .live-preview .vignette-ov { position:absolute; inset:0; pointer-events:none; transition: opacity 0.4s ease; z-index:1; }
 
     /* Text styles on live preview */
+    .live-preview.ts-clean .ov { display:none; }
+    .live-preview.ts-clean .ov span { display:none; }
     .live-preview.ts-broadsheet .ov { display:flex; align-items:flex-start; text-align:left; padding:7cqi; background:linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 50%); }
     .live-preview.ts-broadsheet .ov span { font-family:'Sora',sans-serif; font-weight:600; font-size:8cqi; color:#fff; line-height:1.1; text-shadow:0 1px 3px rgba(0,0,0,0.5); }
     .live-preview.ts-byline .ov { display:flex; align-items:flex-end; justify-content:center; text-align:center; padding:7cqi; background:linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); }
@@ -159,6 +153,15 @@
     .checkbox-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; cursor: pointer; user-select: none; }
     .checkbox-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: #1a1a1a; cursor: pointer; }
     .checkbox-row span { font-size: 13px; color: #666; line-height: 1.5; }
+
+    /* Activation checklist */
+    .activation-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f5f5f5; }
+    .activation-item:last-child { border-bottom:none; }
+    .activation-item input { width:18px; height:18px; accent-color:#1a1a1a; cursor:pointer; flex-shrink:0; }
+    .activation-item .ai-label { flex:1; font-size:14px; color:#333; }
+    .activation-item .ai-link { font-size:12px; color:#888; text-decoration:none; white-space:nowrap; }
+    .activation-item .ai-link:hover { color:#555; }
+    .activation-item.done .ai-label { color:#bbb; text-decoration:line-through; }
 
     /* Pin posts */
     .pin-section { margin-bottom: 20px; }
@@ -389,6 +392,19 @@
         <p style="font-size:13px;color:#666;margin-bottom:10px;">Your page is live at <strong id="savedUrl"></strong></p>
         <a id="viewAfterSave" href="#" target="_blank">View your page</a>
       </div>
+
+      <!-- Activation checklist -->
+      <div id="activationChecklist" style="margin-top:20px;padding:20px;border:1px solid #eee;border-radius:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:16px;font-weight:500;color:#333;">Share your page</span>
+        </div>
+        <p style="font-size:12px;color:#aaa;margin-bottom:14px;">Add your link where people discover you.</p>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f8f8f6;border-radius:8px;margin-bottom:16px;">
+          <span id="activationUrl" style="font-size:13px;font-weight:600;color:#333;flex:1;font-family:monospace;"></span>
+          <button onclick="copyActivationUrl()" id="copyUrlBtn" style="padding:6px 14px;background:#1a1a1a;color:#fff;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Copy link</button>
+        </div>
+        <div id="activationItems" style="display:flex;flex-direction:column;"></div>
+      </div>
       <div class="error" id="editError"></div>
 
       <!-- Pin posts (Pro feature) -->
@@ -587,6 +603,7 @@
 
     // Text style definitions
     const TEXT_STYLES = [
+      { id: 'clean', name: 'None', font: "'Inter', sans-serif", weight: 400 },
       { id: 'broadsheet', name: 'Broadsheet', font: "'Sora', sans-serif", weight: 600 },
       { id: 'byline', name: 'Byline', font: "'Newsreader', serif", weight: 400, italic: true },
       { id: 'billboard', name: 'BILLBOARD', font: "'Bebas Neue', sans-serif", weight: 400 },
@@ -1043,6 +1060,7 @@
       } catch (e) {}
 
       initEditor(img, firstPostTitle);
+      initActivation(p.slug);
 
       // Unlock pin section for paid users (independent of billing)
       if (isPaid) {
@@ -1091,12 +1109,7 @@
         });
         const data = await res.json();
         if (data.url) {
-          gtag('event', 'begin_checkout', {
-            value: selectedPlan === 'annual' ? 39 : 5,
-            currency: 'USD',
-            items: [{ item_name: selectedPlan === 'annual' ? 'Pro Annual' : 'Pro Monthly' }]
-          });
-          setTimeout(function() { window.location.href = data.url; }, 300);
+          window.location.href = data.url;
         } else {
           throw new Error(data.error || 'Could not start checkout');
         }
@@ -1121,6 +1134,49 @@
     }
 
     function toggleLogoUrl() { document.getElementById('logoUrlInput').style.display = 'block'; }
+
+    // Activation checklist
+    const ACTIVATION_PLATFORMS = [
+      { id: 'instagram', label: 'Instagram bio', url: 'https://www.instagram.com/accounts/edit/' },
+      { id: 'threads', label: 'Threads bio', url: 'https://www.threads.net/settings' },
+      { id: 'x', label: 'X bio', url: 'https://x.com/settings/profile' },
+      { id: 'bluesky', label: 'Bluesky bio', url: 'https://bsky.app/settings' },
+      { id: 'substack', label: 'Substack profile', url: 'https://substack.com/settings' }
+    ];
+
+    function initActivation(slug) {
+      const url = 'stack.pub/' + slug;
+      document.getElementById('activationUrl').textContent = url;
+      const container = document.getElementById('activationItems');
+      container.innerHTML = '';
+      const storageKey = 'sp_activation_' + slug;
+      let checked = {};
+      try { checked = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch(e) {}
+
+      ACTIVATION_PLATFORMS.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'activation-item' + (checked[p.id] ? ' done' : '');
+        item.innerHTML =
+          '<input type="checkbox"' + (checked[p.id] ? ' checked' : '') + ' />' +
+          '<span class="ai-label">' + p.label + '</span>' +
+          '<a class="ai-link" href="' + p.url + '" target="_blank">Open &#8599;</a>';
+        item.querySelector('input').addEventListener('change', function() {
+          checked[p.id] = this.checked;
+          item.className = 'activation-item' + (this.checked ? ' done' : '');
+          try { localStorage.setItem(storageKey, JSON.stringify(checked)); } catch(e) {}
+        });
+        container.appendChild(item);
+      });
+    }
+
+    function copyActivationUrl() {
+      const url = 'https://' + document.getElementById('activationUrl').textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('copyUrlBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy link'; }, 2000);
+      });
+    }
 
     function toggleSlugEdit() {
       const wrap = document.getElementById('editSlugWrap');
