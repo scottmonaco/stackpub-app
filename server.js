@@ -142,32 +142,33 @@ function parseSubstackUrl(input) {
 function validatePublicationUrl(input) {
   const clean = input.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
 
+  // Reject empty
+  if (!clean) return { valid: false, error: 'Please enter your publication URL.' };
+
+  // Reject stack.pub URLs (our own domain)
+  if (/^(www\.)?stack\.pub/.test(clean)) {
+    return { valid: false, error: 'That\'s a stack.pub URL. Your publication URL should be yourname.substack.com or your custom domain.' };
+  }
+
   // Reject bare @ handles
   if (/^@/.test(clean)) {
     return { valid: false, error: 'That looks like a username handle. Your publication URL should be yourname.substack.com or your custom domain.' };
   }
 
-  // Reject substack.com/@username (profile URL)
-  if (/^substack\.com\/@/.test(clean)) {
-    return { valid: false, error: 'That\'s your Substack profile page. Your publication URL should be yourname.substack.com or your custom domain.' };
+  // If it contains substack.com, it MUST be exactly username.substack.com
+  if (clean.includes('substack.com')) {
+    if (/^[a-z0-9][a-z0-9_-]*\.substack\.com$/.test(clean)) {
+      return { valid: true };
+    }
+    return { valid: false, error: 'Your Substack URL should be yourname.substack.com with nothing else after it.' };
   }
 
-  // Reject substack.com/profile/...
-  if (/^substack\.com\/profile/.test(clean)) {
-    return { valid: false, error: 'That\'s your Substack profile page. Your publication URL should be yourname.substack.com or your custom domain.' };
+  // Custom domain: must look like a bare domain (no paths, no spaces)
+  if (/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/.test(clean)) {
+    return { valid: true };
   }
 
-  // Reject bare substack.com or open.substack.com
-  if (/^(open\.)?substack\.com(\/.*)?$/.test(clean) && !/^[a-z0-9_-]+\.substack\.com/.test(clean)) {
-    return { valid: false, error: 'That\'s the Substack homepage. Your publication URL should be yourname.substack.com or your custom domain.' };
-  }
-
-  // Reject substack.com/home or other substack.com paths that aren't publications
-  if (/^substack\.com\/(home|search|discover|inbox|settings|recommendations)/.test(clean)) {
-    return { valid: false, error: 'That\'s a Substack page, not a publication. Your publication URL should be yourname.substack.com or your custom domain.' };
-  }
-
-  return { valid: true };
+  return { valid: false, error: 'That doesn\'t look like a valid publication URL. It should be yourname.substack.com or your custom domain.' };
 }
 
 // Discover the Substack subdomain from a custom domain
