@@ -45,35 +45,6 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
           updated_at: new Date().toISOString()
         }).eq('user_id', userId);
         console.log('Activated paid for user:', userId);
-
-        // Fire GA4 purchase event via Measurement Protocol
-        const ga4MeasurementId = process.env.GA4_MEASUREMENT_ID;
-        const ga4ApiSecret = process.env.GA4_API_SECRET;
-        if (ga4MeasurementId && ga4ApiSecret) {
-          try {
-            const amount = session.amount_total ? session.amount_total / 100 : 0;
-            const planInterval = session.metadata?.slug ? 'subscription' : 'one_time';
-            await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${ga4MeasurementId}&api_secret=${ga4ApiSecret}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                client_id: userId,
-                events: [{
-                  name: 'purchase',
-                  params: {
-                    transaction_id: session.payment_intent || session.id,
-                    value: amount,
-                    currency: (session.currency || 'usd').toUpperCase(),
-                    items: [{ item_name: 'stack.pub Pro', price: amount, quantity: 1 }]
-                  }
-                }]
-              })
-            });
-            console.log('GA4 purchase event sent for user:', userId, 'amount:', amount);
-          } catch (gaErr) {
-            console.log('GA4 purchase event failed:', gaErr.message);
-          }
-        }
       }
     }
 
@@ -990,6 +961,10 @@ app.get('/:slug', async (req, res) => {
 
 // ─── Portfolio page renderer (composable styles) ─────────────────────────────
 const textStyleFonts = {
+  clean: {
+    import: "family=DM+Sans:opsz,wght@9..40,400;9..40,600",
+    title: "'DM Sans', sans-serif", body: "'DM Sans', sans-serif"
+  },
   broadsheet: {
     import: "family=Inter:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,600",
     title: "'Inter', sans-serif", body: "'DM Sans', sans-serif"
@@ -1030,6 +1005,9 @@ const textStyleFonts = {
 
 function getTextStyleCSS(textStyle, fonts) {
   const styles = {
+    clean: `
+      .card .overlay { display: none; }
+      .card .card-title { display: none; }`,
     broadsheet: `
       .card .overlay {
         display: flex; align-items: flex-start; text-align: left; padding: 7cqi;
@@ -1221,14 +1199,6 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MJV7C64XDL"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-MJV7C64XDL');
-  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${esc(displayName)}</title>
@@ -1590,14 +1560,8 @@ function renderPageShell({ slug, displayName, logoUrl, textStyle, imageFilter, c
         });
         if (error) throw error;
 
-        // Only fire sign_up for genuinely new accounts (created within last 2 minutes)
-        if (data.user && data.user.created_at) {
-          var createdAt = new Date(data.user.created_at).getTime();
-          if (Date.now() - createdAt < 120000) {
-            gtag('event', 'sign_up', { method: 'email' });
-          }
-        }
-        setTimeout(function() { window.location.href = '/dashboard?pub=' + encodeURIComponent(spPubUrlValue); }, 300);
+        // Success — redirect to dashboard with pub URL
+        window.location.href = '/dashboard?pub=' + encodeURIComponent(spPubUrlValue);
       } catch (e) {
         spShowError('spError3', 'Invalid code. Please try again.');
         btn.disabled = false; btn.textContent = 'Verify';
